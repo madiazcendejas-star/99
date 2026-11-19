@@ -1,6 +1,8 @@
 import { Printer, X } from "lucide-react";
+import { policies } from "./config";
+import CompanyLogo from "./CompanyLogo";
 import { amountInWords, company } from "./QuoteDocument";
-import { PICKUP_DAYS, balanceOf, displayDate, money, type SpecialOrder } from "./SpecialOrdersModule";
+import { balanceOf, displayDate, money, type SpecialOrder } from "./SpecialOrdersModule";
 
 export default function SpecialOrderPrintView({ order, onClose }: { order: SpecialOrder; onClose: () => void }) {
   return (
@@ -23,7 +25,7 @@ export default function SpecialOrderPrintView({ order, onClose }: { order: Speci
         <article className="print-sheet mx-auto flex flex-col bg-white px-[0.6in] py-[0.55in] text-[#162523] shadow-2xl">
           <header className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-3">
-              <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]">99</span>
+              <CompanyLogo className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]" />
               <div>
                 <p className="text-[18px] font-bold leading-tight">{company.commercialName}</p>
                 <p className="mt-0.5 text-[9.5px] text-slate-500">{company.legalName}</p>
@@ -134,9 +136,9 @@ export default function SpecialOrderPrintView({ order, onClose }: { order: Speci
           <section className="mt-6 rounded-lg border border-[#f0d9a3] bg-[#fffaf0] p-3.5 text-[9px] leading-relaxed text-[#6f5418]">
             <p className="text-[8.5px] font-bold uppercase tracking-[0.16em]">Condiciones del pedido especial</p>
             <ol className="mt-1.5 list-decimal space-y-0.5 pl-4">
-              <li>El anticipo mínimo es del 50 % del total y <strong>no es reembolsable</strong> si el cliente cancela el pedido.</li>
+              <li>El anticipo mínimo es del {policies.specialDepositPct} % del total y <strong>no es reembolsable</strong> si el cliente cancela el pedido.</li>
               <li>La fecha promesa depende del proveedor; le avisaremos por teléfono o WhatsApp cuando su pedido llegue.</li>
-              <li>A partir del aviso, el cliente cuenta con {PICKUP_DAYS} días naturales para recoger y liquidar el saldo.</li>
+              <li>A partir del aviso, el cliente cuenta con {policies.specialPickupDays} días naturales para recoger y liquidar el saldo.</li>
               <li>Los productos de pedido especial no admiten cambios ni devoluciones.</li>
               <li>Todos nuestros precios incluyen IVA.</li>
             </ol>

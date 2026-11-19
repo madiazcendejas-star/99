@@ -1,4 +1,5 @@
 import { Printer, X } from "lucide-react";
+import CompanyLogo from "./CompanyLogo";
 import type { Customer } from "./CustomersModule";
 import type { QuoteLine } from "./QuoteBuilder";
 import type { Discount } from "./Discount";
@@ -20,14 +21,8 @@ export type PrintableQuote = {
   discountAmount?: number;
 };
 
-export const company = {
-  commercialName: "Aquaplus",
-  legalName: "Comercializadora Aquaplus, S.A. de C.V.",
-  rfc: "CAQ180624KQ2",
-  address: "Av. Central 145, Col. Industrial, Ciudad de México, C.P. 02300",
-  phone: "55 4182 9050",
-  email: "operaciones@aquaplus.mx",
-};
+export { company } from "./config";
+import { company, policies } from "./config";
 
 const money = (value: number) =>
   value.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
@@ -150,9 +145,7 @@ export default function QuotePrintView({
           {/* Encabezado */}
           <header className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-3">
-              <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]">
-                99
-              </span>
+              <CompanyLogo className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]" />
               <div>
                 <p className="text-[18px] font-bold leading-tight">{company.commercialName}</p>
                 <p className="mt-0.5 text-[9.5px] text-slate-500">{company.legalName}</p>

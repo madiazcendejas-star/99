@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { policies } from "./config";
 import {
   ArrowUpRight,
   Banknote,
@@ -25,8 +26,7 @@ import type { Supplier } from "./PurchasesModule";
 import CustomerPicker from "./CustomerPicker";
 
 // ---------- Políticas ----------
-export const MIN_DEPOSIT = 0.5;
-export const PICKUP_DAYS = 7;
+// Reglas configurables en Configuración → Políticas
 const TODAY_ISO = "2026-11-18";
 
 // ---------- Tipos ----------
@@ -148,7 +148,7 @@ const diffDays = (fromISO: string, toISO = TODAY_ISO) =>
 export const balanceOf = (order: SpecialOrder) => round(order.total - order.deposit);
 export const isLate = (order: SpecialOrder) => order.status === "Pedido al proveedor" && order.promiseISO < TODAY_ISO;
 export const pickupDaysLeft = (order: SpecialOrder) =>
-  order.notifiedISO || order.receivedISO ? PICKUP_DAYS - diffDays((order.notifiedISO || order.receivedISO)!) : PICKUP_DAYS;
+  order.notifiedISO || order.receivedISO ? policies.specialPickupDays - diffDays((order.notifiedISO || order.receivedISO)!) : policies.specialPickupDays;
 export const isUncollected = (order: SpecialOrder) =>
   ["Recibido", "Avisado"].includes(order.status) && pickupDaysLeft(order) < 0;
 export const activeStatuses: SpecialStatus[] = ["Por pedir", "Pedido al proveedor", "Recibido", "Avisado"];
@@ -219,7 +219,7 @@ export function SpecialOrderModal({
   const supplier = suppliers.find((s) => s.id === supplierId);
   const customer = customers.find((c) => c.businessName.toLowerCase() === client.trim().toLowerCase());
   const total = round(items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0));
-  const minDeposit = round(total * MIN_DEPOSIT);
+  const minDeposit = round(total * (policies.specialDepositPct / 100));
   const depositValue = deposit === "" ? minDeposit : Number(deposit) || 0;
   const promiseISO = addDays(TODAY_ISO, (supplier?.leadTimeDays ?? 7) + 1);
   const errors = [
@@ -227,7 +227,7 @@ export function SpecialOrderModal({
     !customer && !phone.trim() && "Captura un teléfono para avisarle",
     !supplier && "Elige el proveedor",
     items.length === 0 && "Agrega al menos un producto",
-    depositValue < minDeposit - 0.009 && `El anticipo mínimo es ${money(minDeposit)} (50 %)`,
+    depositValue < minDeposit - 0.009 && `El anticipo mínimo es ${money(minDeposit)} (${policies.specialDepositPct} %)`,
     depositValue > total + 0.009 && "El anticipo no puede ser mayor al total",
     method === "Efectivo" && !cashOpen && "Abre la caja para cobrar en efectivo",
   ].filter(Boolean) as string[];
@@ -239,7 +239,7 @@ export function SpecialOrderModal({
       <div className="mx-auto my-4 w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
           <div>
-            <p className="eyebrow">Pedido especial · anticipo mínimo 50 % · no reembolsable</p>
+            <p className="eyebrow">Pedido especial · anticipo mínimo {policies.specialDepositPct} % · no reembolsable</p>
             <h2 className="mt-1 text-xl font-semibold">Nuevo pedido especial</h2>
             <p className="mt-1 text-xs text-slate-400">Para productos que no manejas o que no tienen existencia suficiente.</p>
           </div>
@@ -374,7 +374,7 @@ export function SpecialOrderModal({
                 <strong className="text-lg">{money(total)}</strong>
               </div>
               <div className="mt-1 flex justify-between text-slate-500">
-                <span>Anticipo mínimo (50 %)</span>
+                <span>Anticipo mínimo ({policies.specialDepositPct} %)</span>
                 <span>{money(minDeposit)}</span>
               </div>
               <div className="mt-3 flex items-center gap-2 border-t border-slate-200 pt-3 text-[11px] text-slate-600">
@@ -404,7 +404,7 @@ export function SpecialOrderModal({
               })}
             </div>
             <div className="rounded-xl border border-[#f0d9a3] bg-[#fffaf0] p-3 text-[10px] leading-relaxed text-[#8a651e]">
-              <strong>Condiciones:</strong> el anticipo no es reembolsable si el cliente cancela. Al llegar, el cliente tiene {PICKUP_DAYS} días para recoger y
+              <strong>Condiciones:</strong> el anticipo no es reembolsable si el cliente cancela. Al llegar, el cliente tiene {policies.specialPickupDays} días para recoger y
               liquidar. Los pedidos especiales no admiten devolución.
             </div>
             {errors.length > 0 && <p className="text-[11px] font-medium text-[#c9664f]">{errors[0]}.</p>}
@@ -727,7 +727,7 @@ function SpecialDetail({
           {isUncollected(order) && (
             <p className="flex items-start gap-2 rounded-xl bg-[#fff0eb] p-3 text-[11px] text-[#c9664f]">
               <TriangleAlert size={14} className="shrink-0" />
-              Se le avisó el {order.notifiedAt ?? order.receivedAt}. Ya pasaron los {PICKUP_DAYS} días para recoger; contacta al cliente o cancela el pedido (el anticipo se retiene).
+              Se le avisó el {order.notifiedAt ?? order.receivedAt}. Ya pasaron los {policies.specialPickupDays} días para recoger; contacta al cliente o cancela el pedido (el anticipo se retiene).
             </p>
           )}
           <section>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { policies } from "./config";
 import type { Customer } from "./CustomersModule";
 import { HandOverModal, type Order } from "./OrdersModule";
 import type { RoutePlan } from "./RoutesModule";
@@ -1012,7 +1013,7 @@ export default function SalesModule({
                     disabled={cart.length === 0}
                     onClick={() => setLayawayOpen(true)}
                   >
-                    <HandCoins size={15} /> Apartar con 20 %
+                    <HandCoins size={15} /> Apartar con {policies.layawayMinPct} %
                   </button>
                 )}
               </div>

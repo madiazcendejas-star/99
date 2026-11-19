@@ -1,6 +1,8 @@
 import { Printer, X } from "lucide-react";
+import { policies } from "./config";
+import CompanyLogo from "./CompanyLogo";
 import { amountInWords, company } from "./QuoteDocument";
-import { EXTENSION_DAYS, LAYAWAY_DAYS, balanceOf, displayDate, money, paidOf, type Layaway, type WalletMovement } from "./LayawayModule";
+import { balanceOf, displayDate, money, paidOf, type Layaway, type WalletMovement } from "./LayawayModule";
 
 function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -23,7 +25,7 @@ function Sheet({ title, subtitle, onClose, children }: { title: string; subtitle
         <article className="print-sheet mx-auto flex flex-col bg-white px-[0.6in] py-[0.55in] text-[#162523] shadow-2xl">
           <header className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-3">
-              <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]">99</span>
+              <CompanyLogo className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]" />
               <div>
                 <p className="text-[18px] font-bold leading-tight">{company.commercialName}</p>
                 <p className="mt-0.5 text-[9.5px] text-slate-500">{company.legalName}</p>
@@ -143,10 +145,10 @@ export function LayawayPrintView({ layaway, onClose }: { layaway: Layaway; onClo
       <section className="mt-6 rounded-lg border border-[#f0d9a3] bg-[#fffaf0] p-3.5 text-[9px] leading-relaxed text-[#6f5418]">
         <p className="text-[8.5px] font-bold uppercase tracking-[0.16em]">Condiciones del apartado</p>
         <ol className="mt-1.5 list-decimal space-y-0.5 pl-4">
-          <li>Se aparta con un pago mínimo del 20 % y se cuenta con {LAYAWAY_DAYS} días naturales para liquidar.</li>
+          <li>Se aparta con un pago mínimo del {policies.layawayMinPct} % y se cuenta con {policies.layawayDays} días naturales para liquidar.</li>
           <li>Puede abonar las veces que quiera dentro del plazo. Al liquidar, el material se entrega en mostrador.</li>
           <li>Si el apartado se cancela o vence, lo abonado <strong>no se devuelve en efectivo</strong>: queda como saldo a favor en su monedero para futuras compras.</li>
-          <li>La tienda puede otorgar una prórroga de {EXTENSION_DAYS} días a solicitud del cliente.</li>
+          <li>La tienda puede otorgar una prórroga de {policies.layawayExtensionDays} días a solicitud del cliente.</li>
           <li>Precios con IVA incluido. Conserve este comprobante.</li>
         </ol>
       </section>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { RolesSettings, type Role } from "./RolesModule";
+import { initialCompany, initialPolicies, initialsOf, type CompanyConfig, type Policies } from "./config";
 import {
   Bell,
   Building2,
@@ -27,6 +28,7 @@ import {
 
 type SettingsSection =
   | "Empresa"
+  | "Políticas"
   | "Usuarios"
   | "Roles y permisos"
   | "Ventas y POS"
@@ -45,22 +47,11 @@ type AppUser = {
   active: boolean;
 };
 
-type CompanyValues = {
-  commercialName: string;
-  legalName: string;
-  rfc: string;
-  phone: string;
-  email: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  branch: string;
-  warehouse: string;
-  timezone: string;
-};
+type CompanyValues = CompanyConfig;
 
 const sections: { name: SettingsSection; description: string; icon: typeof Store }[] = [
   { name: "Empresa", description: "Identidad y sucursales", icon: Building2 },
+  { name: "Políticas", description: "Apartados, devoluciones, kits…", icon: ClipboardList },
   { name: "Usuarios", description: "Quién entra al sistema", icon: Users },
   { name: "Roles y permisos", description: "Qué puede hacer cada rol", icon: ShieldCheck },
   { name: "Ventas y POS", description: "Caja, precios y cobros", icon: ShoppingCart },
@@ -117,24 +108,30 @@ export type AccessProps = {
   onGoCollaborators: () => void;
 };
 
-export default function SettingsModule({ onToast, access, initialSection }: { onToast: (message: string) => void; access?: AccessProps; initialSection?: string }) {
+export type BusinessProps = {
+  company: CompanyConfig;
+  policies: Policies;
+  onSave: (company: CompanyConfig, policies: Policies) => void;
+};
+
+export default function SettingsModule({
+  onToast,
+  access,
+  initialSection,
+  business,
+}: {
+  onToast: (message: string) => void;
+  access?: AccessProps;
+  initialSection?: string;
+  business?: BusinessProps;
+}) {
   const [section, setSection] = useState<SettingsSection>((initialSection as SettingsSection) || "Empresa");
   const [users, setUsers] = useState<AppUser[]>(initialUsers);
   const [userOpen, setUserOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [company, setCompany] = useState<CompanyValues>({
-    commercialName: "Aquaplus",
-    legalName: "Comercializadora Aquaplus, S.A. de C.V.",
-    rfc: "CAQ180624KQ2",
-    phone: "55 4182 9050",
-    email: "operaciones@aquaplus.mx",
-    address: "Av. Central 145, Col. Industrial",
-    city: "Ciudad de México",
-    postalCode: "02300",
-    branch: "Sucursal principal",
-    warehouse: "Almacén principal",
-    timezone: "America/Mexico_City",
-  });
+  const [company, setCompany] = useState<CompanyValues>(business?.company ?? initialCompany);
+  const [policyDraft, setPolicyDraft] = useState<Policies>(business?.policies ?? initialPolicies);
+
   const [pos, setPos] = useState({
     defaultPrice: "Mostrador",
     tax: "16",
@@ -202,8 +199,10 @@ export default function SettingsModule({ onToast, access, initialSection }: { on
     };
 
   const save = () => {
+    if (!company.commercialName.trim()) return onToast("Escribe el nombre comercial de la empresa");
+    business?.onSave(company, policyDraft);
     setDirty(false);
-    onToast("Configuración guardada correctamente");
+    onToast("Configuración guardada · los documentos y reglas ya usan los nuevos datos");
   };
 
   return (
@@ -265,6 +264,7 @@ export default function SettingsModule({ onToast, access, initialSection }: { on
               onToast={onToast}
             />
           )}
+          {section === "Políticas" && <PoliciesSettings values={policyDraft} update={update(setPolicyDraft)} />}
           {section === "Roles y permisos" && access && (
             <RolesSettings roles={access.roles} usage={access.usage} onSave={access.onSaveRole} onDelete={access.onDeleteRole} onToast={onToast} />
           )}
@@ -410,103 +410,192 @@ function CompanySettings({
   onDirty: () => void;
   onToast: (message: string) => void;
 }) {
+  const pickLogo = (file?: File) => {
+    if (!file) return;
+    if (!/^image\/(png|jpe?g|svg\+xml|webp)$/.test(file.type)) return onToast("Usa una imagen PNG, JPG, SVG o WEBP");
+    if (file.size > 2 * 1024 * 1024) return onToast("El logotipo debe pesar menos de 2 MB");
+    const reader = new FileReader();
+    reader.onload = () => {
+      update("logo", String(reader.result));
+      onDirty();
+    };
+    reader.readAsDataURL(file);
+  };
+  const rfcOk = !company.rfc || /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(company.rfc);
   return (
     <div className="space-y-5">
-      <SettingsCard
-        eyebrow="Identidad"
-        title="Empresa"
-        description="Esta información aparece en documentos, tickets y comunicaciones."
-      >
+      <SettingsCard eyebrow="Identidad" title="Empresa" description="Estos datos aparecen en cotizaciones, notas, tickets, órdenes de compra y reportes impresos.">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
-          <span className="grid size-20 shrink-0 place-items-center rounded-2xl bg-[#183b36] text-xl font-black text-[#b8f34a]">
-            99
-          </span>
+          {company.logo ? (
+            <img src={company.logo} alt="Logotipo" className="size-20 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain p-1" />
+          ) : (
+            <span className="grid size-20 shrink-0 place-items-center rounded-2xl bg-[#183b36] text-xl font-black text-[#b8f34a]">{initialsOf(company.commercialName)}</span>
+          )}
           <div>
             <p className="text-sm font-semibold">Logotipo de la empresa</p>
-            <p className="mt-1 text-xs text-slate-400">PNG o JPG, máximo 2 MB.</p>
+            <p className="mt-1 text-xs text-slate-400">PNG, JPG, SVG o WEBP, máximo 2 MB. Sin logotipo se usan las iniciales.</p>
             <div className="mt-3 flex gap-2">
-              <button
-                className="secondary-button min-h-9"
-                onClick={() => {
-                  onDirty();
-                  onToast("Selector de logotipo abierto");
-                }}
-              >
-                Cambiar logotipo
-              </button>
-              <button className="min-h-9 px-3 text-xs font-semibold text-[#c9664f]">
-                Eliminar
-              </button>
+              <label className="secondary-button inline-flex min-h-9 cursor-pointer items-center">
+                {company.logo ? "Cambiar logotipo" : "Subir logotipo"}
+                <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" aria-label="Subir logotipo" onChange={(e) => pickLogo(e.target.files?.[0])} />
+              </label>
+              {company.logo && (
+                <button className="min-h-9 px-3 text-xs font-semibold text-[#c9664f]" onClick={() => update("logo", "")}>
+                  Quitar
+                </button>
+              )}
             </div>
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label="Nombre comercial"
-            value={company.commercialName}
-            onChange={(v) => update("commercialName", v)}
-          />
-          <TextField
-            label="Razón social"
-            value={company.legalName}
-            onChange={(v) => update("legalName", v)}
-          />
-          <TextField
-            label="RFC"
-            value={company.rfc}
-            onChange={(v) => update("rfc", v.toUpperCase())}
+          <TextField label="Nombre comercial" value={company.commercialName} onChange={(v) => update("commercialName", v)} />
+          <TextField label="Razón social" value={company.legalName} onChange={(v) => update("legalName", v)} />
+          <label className="form-label">
+            RFC
+            <input value={company.rfc} onChange={(e) => update("rfc", e.target.value.toUpperCase().trim())} className={`form-input ${rfcOk ? "" : "border-[#e5785f]"}`} maxLength={13} />
+            {!rfcOk && <span className="text-[10px] font-normal text-[#c9664f]">El RFC debe tener 12 caracteres (moral) o 13 (física).</span>}
+          </label>
+          <SelectField
+            label="Régimen fiscal"
+            value={company.taxRegime}
+            onChange={(v) => update("taxRegime", v)}
+            options={[
+              "601 · General de Ley Personas Morales",
+              "603 · Personas Morales con Fines no Lucrativos",
+              "612 · Personas Físicas con Actividades Empresariales y Profesionales",
+              "621 · Incorporación Fiscal",
+              "626 · Régimen Simplificado de Confianza",
+            ]}
           />
           <TextField label="Teléfono" value={company.phone} onChange={(v) => update("phone", v)} />
-          <TextField
-            label="Correo de contacto"
-            value={company.email}
-            onChange={(v) => update("email", v)}
-            type="email"
-          />
-          <TextField
-            label="Zona horaria"
-            value={company.timezone}
-            onChange={(v) => update("timezone", v)}
-          />
+          <TextField label="Correo de contacto" value={company.email} onChange={(v) => update("email", v)} type="email" />
+          <TextField label="Sitio web" value={company.website} onChange={(v) => update("website", v)} />
         </div>
       </SettingsCard>
 
-      <SettingsCard
-        eyebrow="Operación"
-        title="Sucursal y almacén"
-        description="Ubicación principal desde la que opera el equipo."
-      >
+      <SettingsCard eyebrow="Operación" title="Sucursal y almacén" description="Domicilio que aparece en los documentos impresos.">
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label="Nombre de sucursal"
-            value={company.branch}
-            onChange={(v) => update("branch", v)}
-          />
-          <TextField
-            label="Nombre de almacén"
-            value={company.warehouse}
-            onChange={(v) => update("warehouse", v)}
-          />
+          <TextField label="Nombre de sucursal" value={company.branch} onChange={(v) => update("branch", v)} />
+          <TextField label="Nombre de almacén" value={company.warehouse} onChange={(v) => update("warehouse", v)} />
           <div className="sm:col-span-2">
-            <TextField
-              label="Dirección"
-              value={company.address}
-              onChange={(v) => update("address", v)}
-            />
+            <TextField label="Calle, número y colonia" value={company.street} onChange={(v) => update("street", v)} />
           </div>
-          <TextField label="Ciudad" value={company.city} onChange={(v) => update("city", v)} />
-          <TextField
-            label="Código postal"
-            value={company.postalCode}
-            onChange={(v) => update("postalCode", v)}
-          />
+          <TextField label="Ciudad o municipio" value={company.city} onChange={(v) => update("city", v)} />
+          <div className="grid grid-cols-2 gap-4">
+            <TextField label="Estado" value={company.state} onChange={(v) => update("state", v)} />
+            <TextField label="Código postal" value={company.postalCode} onChange={(v) => update("postalCode", v.replace(/\D/g, "").slice(0, 5))} />
+          </div>
         </div>
-        <button
-          className="link-button mt-5"
-          onClick={() => onToast("Formulario para nueva sucursal abierto")}
-        >
-          <Plus size={14} /> Agregar otra sucursal
-        </button>
+        <div className="mt-5 rounded-xl bg-[#f6f8f7] p-4 text-[11px] text-slate-500">
+          <p className="mb-2 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Así se ve en tus documentos</p>
+          <div className="flex items-start gap-3">
+            {company.logo ? (
+              <img src={company.logo} alt="" className="size-11 rounded-lg bg-white object-contain" />
+            ) : (
+              <span className="grid size-11 place-items-center rounded-lg bg-[#183b36] text-sm font-black text-[#b8f34a]">{initialsOf(company.commercialName)}</span>
+            )}
+            <div>
+              <p className="text-sm font-bold text-[#162523]">{company.commercialName || "Nombre comercial"}</p>
+              <p>{company.legalName}</p>
+              <p>RFC {company.rfc}</p>
+              <p>{[company.street, company.city, company.postalCode && `C.P. ${company.postalCode}`].filter(Boolean).join(", ")}</p>
+              <p>
+                Tel. {company.phone} · {company.email}
+              </p>
+            </div>
+          </div>
+        </div>
+      </SettingsCard>
+    </div>
+  );
+}
+
+function PolicyNumber({
+  label,
+  value,
+  onChange,
+  suffix,
+  min = 0,
+  max,
+  hint,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  suffix: string;
+  min?: number;
+  max?: number;
+  hint?: string;
+}) {
+  return (
+    <label className="form-label">
+      {label}
+      <div className="relative">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={Number.isFinite(value) ? value : ""}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            onChange(Math.max(min, max !== undefined ? Math.min(max, n) : n));
+          }}
+          className="form-input pr-16 text-right font-semibold"
+          aria-label={label}
+        />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">{suffix}</span>
+      </div>
+      {hint && <span className="text-[10px] font-normal text-slate-400">{hint}</span>}
+    </label>
+  );
+}
+
+function PoliciesSettings({ values, update }: { values: Policies; update: <K extends keyof Policies>(field: K, value: Policies[K]) => void }) {
+  const money = (v: number) => v.toLocaleString("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+  const example = 2000;
+  return (
+    <div className="space-y-5">
+      <section className="flex items-start gap-3 rounded-xl border border-[#cfe3dd] bg-[#f3f8f6] p-4 text-xs text-slate-600">
+        <ClipboardList size={16} className="mt-0.5 shrink-0 text-[#2f7468]" />
+        <p>
+          Estas reglas las aplica todo el sistema: punto de venta, apartados, pedidos especiales, devoluciones, kits, cotizaciones y los textos de los documentos impresos. Al guardar, los cambios aplican a las operaciones nuevas; las que ya existen conservan sus fechas.
+        </p>
+      </section>
+      <SettingsCard eyebrow="Ventas" title="Apartados" description="Material que el cliente deja apartado y paga en abonos.">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <PolicyNumber label="Pago mínimo para apartar" value={values.layawayMinPct} onChange={(v) => update("layawayMinPct", v)} suffix="%" min={1} max={100} />
+          <PolicyNumber label="Plazo para liquidar" value={values.layawayDays} onChange={(v) => update("layawayDays", v)} suffix="días" min={1} max={365} />
+          <PolicyNumber label="Prórroga" value={values.layawayExtensionDays} onChange={(v) => update("layawayExtensionDays", v)} suffix="días" min={0} max={180} />
+        </div>
+        <p className="mt-4 text-[11px] text-slate-500">
+          Ejemplo: un apartado de {money(example)} pide al menos {money((example * values.layawayMinPct) / 100)} y vence en {values.layawayDays} días. Si se cancela o vence, el dinero queda como saldo a favor del cliente.
+        </p>
+      </SettingsCard>
+      <SettingsCard eyebrow="Ventas" title="Pedidos especiales" description="Productos que se piden al proveedor para un cliente.">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <PolicyNumber label="Anticipo mínimo" value={values.specialDepositPct} onChange={(v) => update("specialDepositPct", v)} suffix="%" min={0} max={100} />
+          <PolicyNumber label="Días para recoger" value={values.specialPickupDays} onChange={(v) => update("specialPickupDays", v)} suffix="días" min={1} max={90} hint="Se cuentan desde el aviso al cliente" />
+        </div>
+        <p className="mt-4 text-[11px] text-slate-500">
+          Ejemplo: un pedido de {money(example)} pide al menos {money((example * values.specialDepositPct) / 100)} de anticipo, que no se devuelve si el cliente cancela.
+        </p>
+      </SettingsCard>
+      <SettingsCard eyebrow="Ventas" title="Devoluciones" description="Fuera de estas reglas, la devolución pide la autorización de un supervisor con su PIN.">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <PolicyNumber label="Plazo para devolver" value={values.returnDays} onChange={(v) => update("returnDays", v)} suffix="días" min={0} max={365} />
+          <PolicyNumber label="Autorizar a partir de" value={values.returnAuthLimit} onChange={(v) => update("returnAuthLimit", v)} suffix="MXN" min={0} />
+        </div>
+      </SettingsCard>
+      <SettingsCard eyebrow="Inventario" title="Kits" description="Cómo se calcula el precio sugerido de un kit.">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <PolicyNumber label="Descuento vs. piezas sueltas" value={values.kitDiscountPct} onChange={(v) => update("kitDiscountPct", v)} suffix="%" min={0} max={90} />
+          <PolicyNumber label="Margen mínimo" value={values.kitMinMarginPct} onChange={(v) => update("kitMinMarginPct", v)} suffix="%" min={0} max={90} />
+        </div>
+      </SettingsCard>
+      <SettingsCard eyebrow="Ventas" title="Cotizaciones">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <PolicyNumber label="Vigencia predeterminada" value={values.quoteValidityDays} onChange={(v) => update("quoteValidityDays", v)} suffix="días" min={1} max={90} />
+        </div>
       </SettingsCard>
     </div>
   );
@@ -867,12 +956,7 @@ function DocumentsSettings({
       </SettingsCard>
       <SettingsCard eyebrow="Formato" title="Cotizaciones y picking">
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label="Vigencia predeterminada (días)"
-            value={values.quoteValidity}
-            onChange={(v) => update("quoteValidity", v)}
-            type="number"
-          />
+          <p className="text-xs text-slate-500 sm:col-span-2">La vigencia de las cotizaciones se define en Configuración → Políticas.</p>
         </div>
         <div className="mt-5 space-y-1">
           <Toggle

@@ -1,4 +1,5 @@
 import { Printer, X } from "lucide-react";
+import CompanyLogo from "./CompanyLogo";
 import { amountInWords, company } from "./QuoteDocument";
 import { money, type Collaborator, type PayrollRun } from "./CollaboratorsModule";
 
@@ -173,7 +174,7 @@ function Header({ title, subtitle }: { title: string; subtitle: string }) {
     <>
       <header className="flex items-start justify-between gap-6">
         <div className="flex items-start gap-3">
-          <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]">99</span>
+          <CompanyLogo className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]" />
           <div>
             <p className="text-[18px] font-bold leading-tight">{company.commercialName}</p>
             <p className="mt-0.5 text-[9.5px] text-slate-500">{company.legalName}</p>

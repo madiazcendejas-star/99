@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { policies } from "./config";
 import {
   ArrowLeft,
   Check,
@@ -93,7 +94,7 @@ export default function QuoteBuilder({
   const [productQuery, setProductQuery] = useState("");
   const [category, setCategory] = useState("Todas");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [validity, setValidity] = useState("7 días");
+  const [validity, setValidity] = useState(`${policies.quoteValidityDays} días`);
   const [notes, setNotes] = useState("");
   const [globalDiscount, setGlobalDiscount] = useState<Discount | undefined>();
 
@@ -551,9 +552,9 @@ export default function QuoteBuilder({
                     onChange={(event) => setValidity(event.target.value)}
                     className="form-input"
                   >
-                    <option>7 días</option>
-                    <option>15 días</option>
-                    <option>30 días</option>
+                    {[...new Set([policies.quoteValidityDays, 7, 15, 30])].sort((a, b) => a - b).map((d) => (
+                      <option key={d}>{d} días</option>
+                    ))}
                   </select>
                 </label>
                 <label className="form-label">

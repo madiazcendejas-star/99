@@ -50,7 +50,9 @@ import CustomersModule, {
   type Customer,
   type CustomerType,
 } from "./CustomersModule";
-import QuotePrintView, { company } from "./QuoteDocument";
+import QuotePrintView from "./QuoteDocument";
+import CompanyLogo from "./CompanyLogo";
+import { applyConfig, company, initialCompany, initialPolicies, policies, type CompanyConfig, type Policies } from "./config";
 import OrdersModule, {
   initialOrders,
   toPickStatuses,
@@ -83,8 +85,6 @@ import { setStaff } from "./staff";
 import { initialAccounts, initialTerminals, terminalFee, type BankAccount, type BankMovement, type BankOverride, type Terminal } from "./BanksModule";
 import { ADMIN_ROLE, NO_ACCESS_ROLE, PERMISSION_GROUPS, can, initialRoles, maxDiscountOf, type PermissionKey, type Role as AccessRole } from "./RolesModule";
 import {
-  EXTENSION_DAYS,
-  LAYAWAY_DAYS,
   addDays as addDaysISO,
   balanceOf as layawayBalance,
   initialLayaways,
@@ -181,7 +181,9 @@ const roleData: Record<Role, { name: string; greeting: string; description: stri
   Administrador: {
     name: "Carlos Mendoza",
     greeting: "Buenos días, Carlos",
-    description: "Aquí está el pulso de Aquaplus para hoy.",
+    get description() {
+      return `Aquí está el pulso de ${company.commercialName} para hoy.`;
+    },
   },
   Ventas: {
     name: "Ana López",
@@ -620,7 +622,7 @@ function QuotesModule({
   };
 
   const renew = (quote: Quote) => {
-    const expiresAt = addDays(TODAY_ISO, 7);
+    const expiresAt = addDays(TODAY_ISO, policies.quoteValidityDays);
     onUpdate(quote.id, {
       status: "Borrador",
       expiresAt,
@@ -1057,9 +1059,7 @@ function QuotesModule({
           <article className="my-4 w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 p-6">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-[#183b36] text-xs font-black text-[#b8f34a]">
-                  99
-                </span>
+                <CompanyLogo className="grid size-10 place-items-center rounded-xl bg-[#183b36] text-xs font-black text-[#b8f34a]" />
                 <div>
                   <p className="eyebrow">Documento comercial</p>
                   <div className="mt-1 flex items-center gap-2">
@@ -1457,6 +1457,10 @@ function App() {
   const [advances, setAdvances] = useState<Advance[]>(initialAdvances);
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
   const [socialRate, setSocialRate] = useState(DEFAULT_SOCIAL_RATE);
+  // Datos de la empresa y políticas del negocio (Configuración → Empresa / Políticas)
+  const [companyCfg, setCompanyCfg] = useState<CompanyConfig>(initialCompany);
+  const [policyCfg, setPolicyCfg] = useState<Policies>(initialPolicies);
+  applyConfig(companyCfg, policyCfg);
   // Choferes, almacenistas y supervisores de los demás módulos salen de Colaboradores
   const activeStaff = collaborators.filter((c) => c.status === "Activo");
   setStaff({
@@ -1686,8 +1690,8 @@ function App() {
         items: result.lines.reduce((sum, line) => sum + line.quantity, 0),
         date: fullDate(TODAY_ISO),
         issuedAt: TODAY_ISO,
-        expiresAt: addDays(TODAY_ISO, parseInt(result.validity, 10) || 7),
-        validUntil: shortDate(addDays(TODAY_ISO, parseInt(result.validity, 10) || 7)),
+        expiresAt: addDays(TODAY_ISO, parseInt(result.validity, 10) || policies.quoteValidityDays),
+        validUntil: shortDate(addDays(TODAY_ISO, parseInt(result.validity, 10) || policies.quoteValidityDays)),
         status: result.status,
         lastAction: result.status === "Enviada" ? `Finalizada · ${nowTime()}` : "Borrador guardado",
         owner: user.name,
@@ -1940,7 +1944,7 @@ function App() {
   const notifySpecial = (id: string) => {
     const sp = specialOrders.find((order) => order.id === id);
     if (!sp) return;
-    const text = `Hola, le avisamos de ${company.commercialName} que su pedido especial ${sp.id} ya llegó. Saldo pendiente: ${mxn(specialBalance(sp))}. Tiene 7 días para recogerlo.`;
+    const text = `Hola, le avisamos de ${company.commercialName} que su pedido especial ${sp.id} ya llegó. Saldo pendiente: ${mxn(specialBalance(sp))}. Tiene ${policies.specialPickupDays} días para recogerlo.`;
     window.open(`https://wa.me/52${sp.phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`, "_blank");
     updateSpecial(id, { status: "Avisado", notifiedAt: `${fullDate(TODAY_ISO)} · ${nowTime()}`, notifiedISO: TODAY_ISO });
     showToast(`Aviso de ${sp.id} enviado a ${sp.client}`);
@@ -2362,7 +2366,7 @@ function App() {
         phone: data.phone,
         dateISO: TODAY_ISO,
         createdAt: stampNow(),
-        dueISO: addDaysISO(TODAY_ISO, LAYAWAY_DAYS),
+        dueISO: addDaysISO(TODAY_ISO, policies.layawayDays),
         items: data.items,
         total: data.total,
         payments: [{ id: `lp-${Date.now()}`, date: stampNow(), amount: data.firstPayment, method: data.method, user: user.name }],
@@ -2374,7 +2378,7 @@ function App() {
     ]);
     holdItems(data.items, 1, `Apartado ${id} · ${data.client}`);
     collect(data.client, data.firstPayment, data.method, "Abono apartado", `Apartado ${id} · pago inicial`);
-    showToast(`Apartado ${id} registrado · material apartado hasta el ${shortDate(addDaysISO(TODAY_ISO, LAYAWAY_DAYS))}`);
+    showToast(`Apartado ${id} registrado · material apartado hasta el ${shortDate(addDaysISO(TODAY_ISO, policies.layawayDays))}`);
     return id;
   };
   const payLayaway = (id: string, amount: number, method: PayMethodL) => {
@@ -2445,10 +2449,10 @@ function App() {
   const extendLayaway = (id: string) => {
     setLayaways((items) =>
       items.map((item) =>
-        item.id === id ? { ...item, dueISO: addDaysISO(item.dueISO < TODAY_ISO ? TODAY_ISO : item.dueISO, EXTENSION_DAYS), extended: (item.extended ?? 0) + EXTENSION_DAYS } : item,
+        item.id === id ? { ...item, dueISO: addDaysISO(item.dueISO < TODAY_ISO ? TODAY_ISO : item.dueISO, policies.layawayExtensionDays), extended: (item.extended ?? 0) + policies.layawayExtensionDays } : item,
       ),
     );
-    showToast(`${id}: prórroga de ${EXTENSION_DAYS} días otorgada`);
+    showToast(`${id}: prórroga de ${policies.layawayExtensionDays} días otorgada`);
   };
   const cancelLayaway = (id: string, reason: string) => {
     const l = layaways.find((item) => item.id === id);
@@ -2660,12 +2664,16 @@ function App() {
 
         <div className="mx-4 mt-5 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
           <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-xl bg-[#b8f34a]/15 text-[#b8f34a]">
-              <Store size={18} />
-            </div>
+            {companyCfg.logo ? (
+              <img src={companyCfg.logo} alt="" className="size-9 shrink-0 rounded-xl bg-white object-contain p-0.5" />
+            ) : (
+              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#b8f34a]/15 text-[#b8f34a]">
+                <Store size={18} />
+              </div>
+            )}
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-white">Aquaplus</p>
-              <p className="text-[11px] text-white/45">Sucursal principal</p>
+              <p className="truncate text-sm font-medium text-white">{companyCfg.commercialName}</p>
+              <p className="truncate text-[11px] text-white/45">{companyCfg.branch}</p>
             </div>
           </div>
         </div>
@@ -3178,6 +3186,14 @@ function App() {
               key={navKey}
               onToast={showToast}
               initialSection={focus.status}
+              business={{
+                company: companyCfg,
+                policies: policyCfg,
+                onSave: (c, p) => {
+                  setCompanyCfg(c);
+                  setPolicyCfg(p);
+                },
+              }}
               access={{
                 roles,
                 usage: Object.fromEntries(roles.map((r) => [r.name, collaborators.filter((c) => c.role === r.name && c.status === "Activo").map((c) => c.name)])),

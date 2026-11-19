@@ -1,4 +1,5 @@
 import { Printer, X } from "lucide-react";
+import CompanyLogo from "./CompanyLogo";
 import type { Order, OrderItem } from "./OrdersModule";
 import { company } from "./QuoteDocument";
 
@@ -48,9 +49,7 @@ export default function PickingPrintView({ order, onClose }: { order: Order; onC
         <article className="print-sheet mx-auto flex flex-col bg-white px-[0.55in] py-[0.5in] text-[#162523] shadow-2xl">
           <header className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-3">
-              <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#183b36] text-base font-black text-[#b8f34a]">
-                99
-              </span>
+              <CompanyLogo className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#183b36] text-base font-black text-[#b8f34a]" />
               <div>
                 <p className="text-[16px] font-bold leading-tight">{company.commercialName}</p>
                 <p className="mt-0.5 text-[9px] text-slate-500">{company.legalName}</p>

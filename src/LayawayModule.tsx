@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { policies } from "./config";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -21,9 +22,8 @@ import type { Order } from "./OrdersModule";
 import CustomerPicker from "./CustomerPicker";
 
 // ---------- Políticas ----------
-export const MIN_LAYAWAY = 0.2;
-export const LAYAWAY_DAYS = 30;
-export const EXTENSION_DAYS = 15;
+// Reglas configurables en Configuración → Políticas
+export const layawayRules = () => ({ min: policies.layawayMinPct / 100, days: policies.layawayDays, extension: policies.layawayExtensionDays });
 const TODAY_ISO = "2026-11-18";
 
 // ---------- Tipos ----------
@@ -222,12 +222,12 @@ export function LayawayModal({
   const [method, setMethod] = useState<PayMethodL>(cashOpen ? "Efectivo" : "Tarjeta");
   const [notes, setNotes] = useState("");
   const customer = customers.find((c) => c.businessName.toLowerCase() === client.trim().toLowerCase());
-  const min = round(total * MIN_LAYAWAY);
+  const min = round(total * layawayRules().min);
   const value = amount === "" ? min : Number(amount) || 0;
   const errors = [
     !client.trim() && "Captura el nombre del cliente",
     !customer && !phone.trim() && "Captura un teléfono (se registrará como cliente nuevo)",
-    value < min - 0.009 && `El pago mínimo para apartar es ${money(min)} (20 %)`,
+    value < min - 0.009 && `El pago mínimo para apartar es ${money(min)} (${policies.layawayMinPct} %)`,
     value >= total && "Si paga el total, mejor cóbralo como venta",
     method === "Efectivo" && !cashOpen && "Abre la caja para cobrar en efectivo",
     method === "Saldo a favor" && (customer?.creditBalance ?? 0) < value && "El saldo a favor no alcanza",
@@ -237,7 +237,7 @@ export function LayawayModal({
       <div className="mx-auto my-6 w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
           <div>
-            <p className="eyebrow">Apartado · mínimo 20 % · {LAYAWAY_DAYS} días para liquidar</p>
+            <p className="eyebrow">Apartado · mínimo {policies.layawayMinPct} % · {policies.layawayDays} días para liquidar</p>
             <h2 className="mt-1 text-xl font-semibold">Apartar {money(total)}</h2>
             <p className="mt-1 text-xs text-slate-400">El material queda apartado a nombre del cliente hasta que liquide.</p>
           </div>
@@ -284,7 +284,7 @@ export function LayawayModal({
             <MethodButtons value={method} onChange={setMethod} cashOpen={cashOpen} credit={customer?.creditBalance ?? 0} amount={value} />
             <dl className="space-y-1 rounded-xl bg-[#f6f8f7] p-3 text-xs">
               <div className="flex justify-between">
-                <dt className="text-slate-500">Mínimo (20 %)</dt>
+                <dt className="text-slate-500">Mínimo ({policies.layawayMinPct} %)</dt>
                 <dd>{money(min)}</dd>
               </div>
               <div className="flex justify-between font-semibold">
@@ -293,7 +293,7 @@ export function LayawayModal({
               </div>
               <div className="flex justify-between text-slate-500">
                 <dt>Liquidar antes del</dt>
-                <dd>{displayDate(addDays(TODAY_ISO, LAYAWAY_DAYS))}</dd>
+                <dd>{displayDate(addDays(TODAY_ISO, policies.layawayDays))}</dd>
               </div>
             </dl>
             <p className="text-[10px] leading-relaxed text-slate-400">Si el apartado se cancela o vence, lo abonado no se devuelve: queda como saldo a favor en el monedero del cliente.</p>
@@ -488,7 +488,7 @@ export function LayawaysPanel({
                 )}
                 {isExpired(selected) && (
                   <button className="primary-button min-h-9" onClick={() => onExtend(selected.id)}>
-                    <CalendarClock size={14} /> Dar prórroga de {EXTENSION_DAYS} días
+                    <CalendarClock size={14} /> Dar prórroga de {policies.layawayExtensionDays} días
                   </button>
                 )}
                 {selected.saleId && (

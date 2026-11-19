@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { policies } from "./config";
 import {
   ArrowLeft,
   Banknote,
@@ -21,8 +22,7 @@ import type { Sale } from "./SalesModule";
 import { staff } from "./staff";
 
 // ---------- Políticas ----------
-export const RETURN_DAYS = 30;
-export const AUTH_LIMIT = 5000;
+// Reglas configurables en Configuración → Políticas
 /** Supervisores con PIN: vienen de Colaboradores */
 export const supervisorsList = () => staff.supervisors;
 export const returnReasons = [
@@ -189,8 +189,8 @@ export function ReturnWizard({
                       {item.returnedAmount ? ` · devuelto ${money(item.returnedAmount)}` : ""}
                     </p>
                   </div>
-                  <span className={`text-[10px] font-semibold ${days > RETURN_DAYS ? "text-[#c9664f]" : "text-slate-400"}`}>
-                    {days > RETURN_DAYS ? `Fuera de plazo (${days} días)` : `Hace ${days} ${days === 1 ? "día" : "días"}`}
+                  <span className={`text-[10px] font-semibold ${days > policies.returnDays ? "text-[#c9664f]" : "text-slate-400"}`}>
+                    {days > policies.returnDays ? `Fuera de plazo (${days} días)` : `Hace ${days} ${days === 1 ? "día" : "días"}`}
                   </span>
                   <span className="w-20 text-right font-semibold">{money(item.amount)}</span>
                 </button>
@@ -227,10 +227,10 @@ export function ReturnWizard({
   ];
   const selectedMethod = method && methods.find((m) => m.method === method)?.enabled ? method : null;
 
-  const outOfTerm = days > RETURN_DAYS;
-  const overLimit = total > AUTH_LIMIT;
+  const outOfTerm = days > policies.returnDays;
+  const overLimit = total > policies.returnAuthLimit;
   const needsAuth = outOfTerm || overLimit;
-  const authReason = [outOfTerm && `fuera de plazo (${days} días)`, overLimit && `monto mayor a ${money(AUTH_LIMIT)}`].filter(Boolean).join(" y ");
+  const authReason = [outOfTerm && `fuera de plazo (${days} días)`, overLimit && `monto mayor a ${money(policies.returnAuthLimit)}`].filter(Boolean).join(" y ");
   const pinOk = supervisors.find((s) => s.name === supervisor)?.pin === pin;
   const valid = delivered && chosen.length > 0 && (refundAmount === 0 || selectedMethod) && (!needsAuth || pinOk);
 
@@ -261,7 +261,7 @@ export function ReturnWizard({
           <div className="space-y-5">
             {outOfTerm && (
               <p className="flex items-center gap-2 rounded-xl bg-[#fff0eb] px-3 py-2.5 text-[11px] text-[#c9664f]">
-                <TriangleAlert size={14} /> Venta de hace {days} días: el plazo de devolución es de {RETURN_DAYS} días. Requiere autorización.
+                <TriangleAlert size={14} /> Venta de hace {days} días: el plazo de devolución es de {policies.returnDays} días. Requiere autorización.
               </p>
             )}
             <div className="overflow-hidden rounded-xl border border-slate-200">
@@ -473,7 +473,7 @@ function Shell({
               </button>
             )}
             <div>
-              <p className="eyebrow">Devoluciones · plazo {RETURN_DAYS} días · sin cargo por reposición</p>
+              <p className="eyebrow">Devoluciones · plazo {policies.returnDays} días · sin cargo por reposición</p>
               <h2 className="mt-1 text-xl font-semibold">{title}</h2>
               <p className="mt-1 text-xs text-slate-400">{subtitle}</p>
             </div>

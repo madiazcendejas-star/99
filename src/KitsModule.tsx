@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { policies } from "./config";
 import {
   Check,
   Layers,
@@ -27,8 +28,9 @@ export type Kit = {
 /** Componentes ya resueltos (nombre y unidad) para imprimir en documentos */
 export type KitLineComponent = { sku: string; name: string; quantity: number; unit: string };
 
-export const KIT_DISCOUNT = 0.05;
-export const MIN_MARGIN = 0.2;
+// Reglas configurables en Configuración → Políticas
+const kitDiscount = () => policies.kitDiscountPct / 100;
+const minMargin = () => policies.kitMinMarginPct / 100;
 
 export const initialKits: Kit[] = [
   {
@@ -93,8 +95,8 @@ export const kitListPrice = (kit: Pick<Kit, "components">, products: InventoryPr
   round(kit.components.reduce((sum, c) => sum + (productOf(products, c.sku)?.[field] ?? 0) * c.quantity, 0));
 /** Precio sugerido: 5 % menos que comprar las piezas sueltas, sin bajar del margen mínimo; redondeado a $10 */
 export const suggestedPrice = (kit: Pick<Kit, "components">, products: InventoryProduct[], field: "retailPrice" | "wholesalePrice" | "contractorPrice" = "retailPrice") => {
-  const byDiscount = kitListPrice(kit, products, field) * (1 - KIT_DISCOUNT);
-  const byMargin = kitCost(kit, products) / (1 - MIN_MARGIN);
+  const byDiscount = kitListPrice(kit, products, field) * (1 - kitDiscount());
+  const byMargin = kitCost(kit, products) / (1 - minMargin());
   return Math.ceil(Math.max(byDiscount, byMargin) / 10) * 10;
 };
 /** Kits virtuales: lo disponible lo marca el componente más escaso */
@@ -217,7 +219,7 @@ export function KitsPanel({
                     </td>
                     <td className="py-3.5 pl-4 text-right text-slate-500">{money(cost)}</td>
                     <td className="py-3.5 pl-4 text-right font-semibold">{money(kit.retailPrice)}</td>
-                    <td className={`px-5 py-3.5 text-right font-semibold ${margin < MIN_MARGIN ? "text-[#c9664f]" : "text-[#347652]"}`}>{(margin * 100).toFixed(1)}%</td>
+                    <td className={`px-5 py-3.5 text-right font-semibold ${margin < minMargin() ? "text-[#c9664f]" : "text-[#347652]"}`}>{(margin * 100).toFixed(1)}%</td>
                   </tr>
                 );
               })}
@@ -335,7 +337,7 @@ function KitModal({
     { key: "wholesalePrice" as const, label: "Mayorista" },
     { key: "contractorPrice" as const, label: "Contratista" },
   ];
-  const lowMargin = lists.some(({ key }) => form[key] > 0 && (form[key] - cost) / form[key] < MIN_MARGIN);
+  const lowMargin = lists.some(({ key }) => form[key] > 0 && (form[key] - cost) / form[key] < minMargin());
   const valid = form.name.trim() && form.sku.trim().length > 4 && form.components.length >= 2 && lists.every(({ key }) => form[key] > 0);
 
   return (
@@ -454,7 +456,7 @@ function KitModal({
                       Sugerido {money(suggested)}
                     </button>
                     <p className="text-[10px] text-slate-400">Suelto {money(loose)}</p>
-                    <p className={`text-[10px] font-semibold ${form[key] && margin < MIN_MARGIN ? "text-[#c9664f]" : "text-[#347652]"}`}>
+                    <p className={`text-[10px] font-semibold ${form[key] && margin < minMargin() ? "text-[#c9664f]" : "text-[#347652]"}`}>
                       {form[key] ? `Margen ${(margin * 100).toFixed(1)}%` : "—"}
                     </p>
                   </div>
@@ -462,11 +464,11 @@ function KitModal({
               })}
             </div>
             <p className="mt-3 text-[10px] leading-relaxed text-slate-400">
-              Costo del kit {money(cost)}. El sugerido es {KIT_DISCOUNT * 100}% menos que comprar las piezas sueltas, sin bajar del margen mínimo de {MIN_MARGIN * 100}%, redondeado a $10.
+              Costo del kit {money(cost)}. El sugerido es {policies.kitDiscountPct}% menos que comprar las piezas sueltas, sin bajar del margen mínimo de {policies.kitMinMarginPct}%, redondeado a $10.
             </p>
             {lowMargin && (
               <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[#c9664f]">
-                <TriangleAlert size={13} /> Algún precio deja menos del {MIN_MARGIN * 100}% de margen.
+                <TriangleAlert size={13} /> Algún precio deja menos del {policies.kitMinMarginPct}% de margen.
               </p>
             )}
           </div>

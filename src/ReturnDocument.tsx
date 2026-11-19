@@ -1,4 +1,6 @@
 import { Printer, X } from "lucide-react";
+import { policies } from "./config";
+import CompanyLogo from "./CompanyLogo";
 import { amountInWords, company } from "./QuoteDocument";
 import type { Customer } from "./CustomersModule";
 import { money, type SaleReturn } from "./ReturnsModule";
@@ -33,7 +35,7 @@ export default function ReturnPrintView({
         <article className="print-sheet mx-auto flex flex-col bg-white px-[0.6in] py-[0.55in] text-[#162523] shadow-2xl">
           <header className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-3">
-              <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]">99</span>
+              <CompanyLogo className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#183b36] text-lg font-black text-[#b8f34a]" />
               <div>
                 <p className="text-[18px] font-bold leading-tight">{company.commercialName}</p>
                 <p className="mt-0.5 text-[9.5px] text-slate-500">{company.legalName}</p>
@@ -155,7 +157,7 @@ export default function ReturnPrintView({
           <section className="mt-6 text-[9px] leading-relaxed text-slate-600">
             <p className="text-[8.5px] font-bold uppercase tracking-[0.16em] text-[#2f7468]">Política de devoluciones</p>
             <ol className="mt-1.5 list-decimal space-y-0.5 pl-4">
-              <li>Se aceptan devoluciones dentro de los 30 días posteriores a la compra presentando la nota de venta.</li>
+              <li>Se aceptan devoluciones dentro de los {policies.returnDays} días posteriores a la compra presentando la nota de venta.</li>
               <li>No se aceptan materiales cortados, instalados o pedidos especiales.</li>
               <li>El reembolso se realiza por el mismo medio de pago o como saldo a favor para compras futuras.</li>
               <li>Este documento no es un comprobante fiscal. Si la venta fue facturada se emitirá la nota de crédito correspondiente.</li>

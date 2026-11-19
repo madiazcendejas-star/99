@@ -31,7 +31,7 @@ Para generar la versión de producción: `npm run build` (queda en `dist/`).
 - **Clientes**.
 - **Colaboradores**: sueldos (semanal, quincenal o mensual), carga social opcional, comisiones por vendedor y préstamos.
 - **Reportes**: ventas totales contra ventas cobradas, utilidad bruta y neta sobre lo cobrado, estado de resultados, saldo en bancos y caja, pedidos por entregar y OC por recibir. Filtro por periodo o rango de fechas.
-- **Configuración**: roles y permisos (el Administrador siempre tiene acceso total) y usuarios.
+- **Configuración**: datos de la empresa (logotipo, razón social, RFC, régimen, domicilio) que salen en todos los documentos; **políticas** del negocio (apartados, pedidos especiales, devoluciones, kits, vigencia de cotizaciones); roles y permisos (el Administrador siempre tiene acceso total) y usuarios.
 
 ## Notas
 
