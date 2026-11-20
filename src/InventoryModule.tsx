@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from "react";
+import { policies } from "./config";
+import { PUBLIC_LIST, priceFor, pricesOf } from "./pricing";
 import { KitsPanel, type Kit, type KitLineComponent } from "./KitsModule";
 import {
   ArrowUpRight,
@@ -43,11 +45,20 @@ export type InventoryProduct = {
   shelf: string;
   supplier: string;
   status: "Activo" | "Inactivo";
+  /** Precio por lista (además del público, que es retailPrice) */
+  prices?: Record<string, number>;
+  /** Datos fiscales y de compra */
+  satKey?: string;
+  satUnit?: string;
+  family?: string;
+  supplierSku?: string;
+  packaging?: string;
+  piecesPerPack?: number;
   /** Solo para kits mostrados como producto en catálogos */
   kitComponents?: KitLineComponent[];
 };
 
-export const initialInventory: InventoryProduct[] = [
+const seedInventory: InventoryProduct[] = [
   {
     id: "prod-7",
     sku: "VAL-ESF-050",
@@ -250,6 +261,12 @@ export const initialInventory: InventoryProduct[] = [
   },
 ];
 
+// Precios de ejemplo para las 4 listas de precios
+export const initialInventory: InventoryProduct[] = seedInventory.map((p) => ({
+  ...p,
+  prices: { mayoreo: p.wholesalePrice, plomero: p.contractorPrice, distribuidor: Math.round(Math.min(p.wholesalePrice, p.contractorPrice) * 0.97 * 10) / 10 },
+}));
+
 type NewProduct = Omit<InventoryProduct, "id" | "reserved">;
 
 export type MovementKind = "Entrada" | "Salida" | "Ajuste" | "Merma" | "Apartado" | "Liberación";
@@ -430,9 +447,12 @@ export default function InventoryModule({
 
   const submitManual = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Los precios por lista se guardan en `prices`; mayoreo y plomero también en los campos de siempre
+    const prices = { ...pricesOf(form), ...(form.prices ?? {}) };
+    const data = { ...form, prices, wholesalePrice: prices.mayoreo || form.retailPrice, contractorPrice: prices.plomero || form.retailPrice };
     if (editingId) {
       const original = products.find((item) => item.id === editingId)!;
-      onUpdateProduct?.({ ...original, ...form, stock: original.stock });
+      onUpdateProduct?.({ ...original, ...data, stock: original.stock });
       setForm(emptyProduct);
       setEditingId(null);
       setManualOpen(false);
@@ -440,7 +460,7 @@ export default function InventoryModule({
       return;
     }
     const product: InventoryProduct = {
-      ...form,
+      ...data,
       id: `prod-${Date.now()}`,
       reserved: 0,
     };
@@ -452,9 +472,9 @@ export default function InventoryModule({
 
   const downloadTemplate = () => {
     const header =
-      "sku,nombre,categoria,marca,unidad,stock,stock_minimo,costo,precio_mostrador,pasillo,estante,proveedor\n";
+      "sku,codigo_barras,nombre,categoria,familia,marca,unidad,stock,stock_minimo,costo,precio_mostrador,precio_mayoreo,precio_plomero,precio_distribuidor,iva,clave_sat,unidad_sat,pasillo,estante,proveedor\n";
     const example =
-      'PVC-TEE-100,"Tee PVC hidráulica 1 pulgada",Conexiones PVC,Rexolite,pieza,40,10,18.5,29.9,A,06,Conexiones del Centro\n';
+      'PVC-TEE-100,7501234567890,"Tee PVC hidráulica 1 pulgada",Conexiones PVC,Hidráulica,Rexolite,pieza,40,10,18.5,29.9,27.5,26.9,25.9,16,40142500,H87,A,06,Conexiones del Centro\n';
     const url = URL.createObjectURL(new Blob([header, example], { type: "text/csv" }));
     const link = document.createElement("a");
     link.href = url;
@@ -496,7 +516,15 @@ export default function InventoryModule({
         cost,
         retailPrice: retail,
         wholesalePrice: Number(field(row, "precio_mayoreo")) || retail,
-        contractorPrice: Number(field(row, "precio_contratista")) || retail,
+        contractorPrice: Number(field(row, "precio_plomero") || field(row, "precio_contratista")) || retail,
+        prices: Object.fromEntries(
+          policies.priceLists
+            .filter((l) => l.id !== PUBLIC_LIST)
+            .map((l) => [l.id, Number(field(row, `precio_${l.id}`)) || (l.id === "plomero" ? Number(field(row, "precio_contratista")) : 0) || retail]),
+        ),
+        satKey: field(row, "clave_sat"),
+        satUnit: field(row, "unidad_sat"),
+        family: field(row, "familia"),
         tax: Number(field(row, "iva")) || 16,
         aisle: field(row, "pasillo"),
         shelf: field(row, "estante"),
@@ -983,29 +1011,45 @@ export default function InventoryModule({
                     onChange={(value) => updateField("cost", value)}
                     money
                   />
-                  <NumberField
-                    label="Precio mostrador *"
-                    value={form.retailPrice}
-                    onChange={(value) => updateField("retailPrice", value)}
-                    money
-                  />
-                  <NumberField
-                    label="Precio mayoreo"
-                    value={form.wholesalePrice}
-                    onChange={(value) => updateField("wholesalePrice", value)}
-                    money
-                  />
-                  <NumberField
-                    label="Precio contratista"
-                    value={form.contractorPrice}
-                    onChange={(value) => updateField("contractorPrice", value)}
-                    money
-                  />
-                  <NumberField
-                    label="IVA (%)"
-                    value={form.tax}
-                    onChange={(value) => updateField("tax", value)}
-                  />
+                  {policies.priceLists.map((list) =>
+                    list.id === PUBLIC_LIST ? (
+                      <NumberField key={list.id} label={`Precio ${list.name.toLowerCase()} *`} value={form.retailPrice} onChange={(value) => updateField("retailPrice", value)} money />
+                    ) : (
+                      <NumberField
+                        key={list.id}
+                        label={`Precio ${list.name.toLowerCase()}`}
+                        value={form.prices?.[list.id] ?? priceFor(form, list.id)}
+                        onChange={(value) => updateField("prices", { ...pricesOf(form), ...(form.prices ?? {}), [list.id]: value })}
+                        money
+                      />
+                    ),
+                  )}
+                  <Field label="IVA">
+                    <select value={form.tax} onChange={(e) => updateField("tax", Number(e.target.value))} className="form-input">
+                      <option value={16}>16 %</option>
+                      <option value={8}>8 % (región fronteriza)</option>
+                      <option value={0}>0 % / exento</option>
+                    </select>
+                  </Field>
+                </FormSection>
+
+                <FormSection title="Datos fiscales y empaque" description="Claves del SAT para facturar y presentación de compra.">
+                  <Field label="Clave SAT de producto">
+                    <input value={form.satKey ?? ""} onChange={(e) => updateField("satKey", e.target.value.replace(/\D/g, "").slice(0, 8))} className="form-input" placeholder="40141700" />
+                  </Field>
+                  <Field label="Clave SAT de unidad">
+                    <input value={form.satUnit ?? ""} onChange={(e) => updateField("satUnit", e.target.value.toUpperCase().slice(0, 3))} className="form-input" placeholder="H87" />
+                  </Field>
+                  <Field label="Familia">
+                    <input value={form.family ?? ""} onChange={(e) => updateField("family", e.target.value)} className="form-input" placeholder="Hidráulica" />
+                  </Field>
+                  <Field label="SKU del proveedor">
+                    <input value={form.supplierSku ?? ""} onChange={(e) => updateField("supplierSku", e.target.value)} className="form-input" />
+                  </Field>
+                  <Field label="Empaque de compra">
+                    <input value={form.packaging ?? ""} onChange={(e) => updateField("packaging", e.target.value)} className="form-input" placeholder="Caja, bulto, rollo…" />
+                  </Field>
+                  <NumberField label="Piezas por empaque" value={form.piecesPerPack ?? 0} onChange={(value) => updateField("piecesPerPack", value)} />
                 </FormSection>
 
                 <FormSection
@@ -1252,9 +1296,7 @@ export default function InventoryModule({
                       <div className="mt-3 overflow-hidden rounded-xl border border-slate-100 text-xs">
                         {[
                           ["Costo unitario", product.cost, null],
-                          ["Mostrador", product.retailPrice, margin(product.retailPrice)],
-                          ["Mayoreo", product.wholesalePrice, margin(product.wholesalePrice)],
-                          ["Contratista", product.contractorPrice, margin(product.contractorPrice)],
+                          ...policies.priceLists.map((list) => [list.name, priceFor(product, list.id), margin(priceFor(product, list.id))]),
                         ].map(([label, value, pct]) => (
                           <div key={label as string} className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5 last:border-0">
                             <span className="text-slate-500">{label}</span>
@@ -1277,6 +1319,8 @@ export default function InventoryModule({
                         ["Proveedor", product.supplier || "Sin proveedor"],
                         ["Unidades", `Base: ${product.baseUnit} · Venta: ${product.saleUnit}${product.conversion !== 1 ? ` (1 = ${product.conversion} ${product.baseUnit})` : ""}`],
                         ["Código de barras", product.barcode || "—"],
+                        ["Claves SAT", product.satKey ? `${product.satKey} · ${product.satUnit || "—"}` : "Sin capturar"],
+                        ["Empaque", product.packaging ? `${product.packaging}${product.piecesPerPack ? ` de ${product.piecesPerPack}` : ""}` : "—"],
                       ].map(([label, value]) => (
                         <div key={label} className="rounded-xl border border-slate-100 p-3">
                           <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>

@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { policies } from "./config";
+import { listForCustomer, listName } from "./pricing";
 import StatementPrintView, { type StatementRow } from "./CustomerDocument";
 import type { Order } from "./OrdersModule";
 import { pendingAmount, type Sale } from "./SalesModule";
@@ -46,11 +48,40 @@ export type Customer = {
   notes: string;
   /** Saldo a favor por devoluciones, aplicable en compras futuras */
   creditBalance?: number;
+  /** Lista de precios asignada (si no tiene, se toma la de su tipo) */
+  priceList?: string;
+  /** Datos fiscales para facturar */
+  legalName?: string;
+  taxRegime?: string;
+  cfdiUse?: string;
+  fiscalZip?: string;
+  /** Inscrito en el programa de plomeros */
+  plumberProgram?: boolean;
+  /** Zona de reparto y vendedor asignado */
+  zone?: string;
+  salesRep?: string;
 };
+
+export const TAX_REGIMES = [
+  "601 · General de Ley Personas Morales",
+  "603 · Personas Morales con Fines no Lucrativos",
+  "605 · Sueldos y Salarios",
+  "606 · Arrendamiento",
+  "612 · Personas Físicas con Actividades Empresariales",
+  "616 · Sin obligaciones fiscales",
+  "621 · Incorporación Fiscal",
+  "626 · Régimen Simplificado de Confianza",
+];
+export const CFDI_USES = ["G01 · Adquisición de mercancías", "G03 · Gastos en general", "I01 · Construcciones", "S01 · Sin efectos fiscales", "CP01 · Pagos"];
 
 export const initialCustomers: Customer[] = [
   {
     id: "CL-1049",
+    priceList: "distribuidor",
+    legalName: "FERREMATERIALES TULA",
+    taxRegime: "601 · General de Ley Personas Morales",
+    cfdiUse: "G01 · Adquisición de mercancías",
+    fiscalZip: "42800",
     businessName: "Ferremateriales Tula",
     contactName: "Rodrigo Pérez",
     rfc: "FTU190311HG5",
@@ -95,6 +126,7 @@ export const initialCustomers: Customer[] = [
     contactName: "Miguel Zamora",
     rfc: "CMZ2103158R4",
     type: "Contratista",
+    plumberProgram: true,
     status: "Con saldo",
     phone: "55 7231 4408",
     email: "miguel@constructoramz.com",
@@ -248,9 +280,11 @@ export default function CustomersModule({
   orders = [],
   onQuote,
   onOpen,
+  onUpdateCustomer,
 }: {
   customers: Customer[];
   onAddCustomer: (customer: Customer) => void;
+  onUpdateCustomer?: (customer: Customer) => void;
   onToast: (message: string) => void;
   initialQuery?: string;
   initialSelectedId?: string;
@@ -263,6 +297,7 @@ export default function CustomersModule({
   const [query, setQuery] = useState(initialQuery);
   const [type, setType] = useState<"Todos" | CustomerType>("Todos");
   const [addOpen, setAddOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     () => customers.find((customer) => customer.id === initialSelectedId) || null,
   );
@@ -414,6 +449,17 @@ export default function CustomersModule({
 
   const submitCustomer = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (editingId) {
+      const original = customers.find((c) => c.id === editingId)!;
+      const updated = { ...original, ...form };
+      onUpdateCustomer?.(updated);
+      setSelectedCustomer((current) => (current?.id === editingId ? updated : current));
+      setEditingId(null);
+      setForm(emptyCustomer);
+      setAddOpen(false);
+      onToast(`${updated.businessName} actualizado`);
+      return;
+    }
     const nextNumber =
       Math.max(...customers.map((customer) => Number(customer.id.replace("CL-", "")))) + 1;
     const customer: Customer = {
@@ -446,7 +492,14 @@ export default function CustomersModule({
             Centraliza contactos, historial, saldos y condiciones comerciales.
           </p>
         </div>
-        <button className="primary-button" onClick={() => setAddOpen(true)}>
+        <button
+          className="primary-button"
+          onClick={() => {
+            setEditingId(null);
+            setForm(emptyCustomer);
+            setAddOpen(true);
+          }}
+        >
           <Plus size={17} /> Nuevo cliente
         </button>
       </section>
@@ -768,7 +821,7 @@ export default function CustomersModule({
             <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
               <div>
                 <p className="eyebrow">Directorio comercial</p>
-                <h2 className="mt-1 text-xl font-semibold">Nuevo cliente</h2>
+                <h2 className="mt-1 text-xl font-semibold">{editingId ? "Editar cliente" : "Nuevo cliente"}</h2>
                 <p className="mt-1 text-xs text-slate-400">
                   Registra contacto, condiciones de venta y crédito.
                 </p>
@@ -818,6 +871,22 @@ export default function CustomersModule({
                     <option>Contratista</option>
                     <option>Mostrador</option>
                   </select>
+                </FormField>
+                <FormField label="Lista de precios">
+                  <select value={form.priceList ?? ""} onChange={(event) => update("priceList", event.target.value || undefined)} className="form-input">
+                    <option value="">Según su tipo ({listName(listForCustomer({ type: form.type }))})</option>
+                    {policies.priceLists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Zona de reparto">
+                  <input value={form.zone ?? ""} onChange={(event) => update("zone", event.target.value)} className="form-input" placeholder="Norte, Centro…" />
+                </FormField>
+                <FormField label="Vendedor asignado">
+                  <input value={form.salesRep ?? ""} onChange={(event) => update("salesRep", event.target.value)} className="form-input" />
                 </FormField>
                 <FormField label="Canal preferido">
                   <select
@@ -889,6 +958,35 @@ export default function CustomersModule({
                     />
                   </div>
                 </FormField>
+                <div className="sm:col-span-2 mt-2 border-t border-slate-100 pt-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Datos fiscales para facturar</p>
+                </div>
+                <FormField label="Razón social (como en su constancia)" wide>
+                  <input value={form.legalName ?? ""} onChange={(event) => update("legalName", event.target.value.toUpperCase())} className="form-input" placeholder="Sin régimen societario, como lo pide el CFDI 4.0" />
+                </FormField>
+                <FormField label="Régimen fiscal">
+                  <select value={form.taxRegime ?? ""} onChange={(event) => update("taxRegime", event.target.value || undefined)} className="form-input">
+                    <option value="">Sin capturar</option>
+                    {TAX_REGIMES.map((r) => (
+                      <option key={r}>{r}</option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Uso de CFDI">
+                  <select value={form.cfdiUse ?? ""} onChange={(event) => update("cfdiUse", event.target.value || undefined)} className="form-input">
+                    <option value="">Sin capturar</option>
+                    {CFDI_USES.map((r) => (
+                      <option key={r}>{r}</option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Código postal fiscal">
+                  <input value={form.fiscalZip ?? ""} onChange={(event) => update("fiscalZip", event.target.value.replace(/\D/g, "").slice(0, 5))} className="form-input" placeholder="00000" />
+                </FormField>
+                <label className="flex items-center gap-2 self-end pb-3 text-xs font-semibold text-slate-600">
+                  <input type="checkbox" checked={!!form.plumberProgram} onChange={(event) => update("plumberProgram", event.target.checked)} className="size-4 accent-[#2f7468]" />
+                  Inscrito en el programa de plomeros
+                </label>
                 <FormField label="Notas comerciales" wide>
                   <textarea
                     value={form.notes}
@@ -959,9 +1057,21 @@ export default function CustomersModule({
                     <X size={16} />
                   </button>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="mt-4 grid grid-cols-4 gap-2">
                   <button className="primary-button min-h-10" onClick={() => onQuote?.(customer)}>
                     <FileText size={15} /> Cotizar
+                  </button>
+                  <button
+                    className="secondary-button flex min-h-10 items-center justify-center gap-2 bg-white"
+                    onClick={() => {
+                      const { id: _id, status: _s, balance: _b, totalPurchases: _t, orders: _o, lastPurchase: _l, ...rest } = customer;
+                      setForm({ ...emptyCustomer, ...rest });
+                      setEditingId(customer.id);
+                      setSelectedCustomer(null);
+                      setAddOpen(true);
+                    }}
+                  >
+                    Editar
                   </button>
                   <button className="secondary-button flex min-h-10 items-center justify-center gap-2 bg-white" onClick={() => openWhatsApp(customer)}>
                     <MessageCircle size={15} /> WhatsApp
@@ -1003,6 +1113,8 @@ export default function CustomersModule({
                       {(customer.creditBalance ?? 0) > 0 && (
                         <Summary label="Saldo a favor (devoluciones)" value={money(customer.creditBalance ?? 0)} />
                       )}
+                      <Summary label="Lista de precios" value={`${listName(listForCustomer(customer))}${customer.plumberProgram ? " · programa plomero" : ""}`} />
+                      <Summary label="Datos fiscales" value={customer.taxRegime && customer.fiscalZip ? `${customer.taxRegime.split(" · ")[0]} · C.P. ${customer.fiscalZip}` : "Incompletos para facturar"} danger={!(customer.taxRegime && customer.fiscalZip)} />
                     </section>
                     {overdue > 0 && (
                       <p className="flex items-center gap-2 rounded-xl bg-[#fff0eb] px-3 py-2.5 text-[11px] font-semibold text-[#c9664f]">

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { PUBLIC_LIST, listForCustomer, listName } from "./pricing";
 import { policies } from "./config";
 import type { Customer } from "./CustomersModule";
 import { HandOverModal, type Order } from "./OrdersModule";
@@ -134,9 +135,11 @@ type Product = {
   /** Kits virtuales */
   components?: KitLineComponent[];
   cost?: number;
+  /** Precio por lista (price = precio público) */
+  prices?: Record<string, number>;
 };
 
-type CartItem = Product & { quantity: number; discount?: Discount };
+type CartItem = Product & { quantity: number; discount?: Discount; basePrice?: number };
 
 type SaleSeed = Omit<Sale, "amount" | "items" | "lines">;
 // Arma una venta de ejemplo con sus partidas; el importe es la suma de las partidas
@@ -408,6 +411,14 @@ export default function SalesModule({
   const [printReturnId, setPrintReturnId] = useState<string | null>(null);
   const printReturn = returns.find((ret) => ret.id === printReturnId) || null;
   const creditCustomer = customers.find((item) => item.businessName.toLowerCase() === customer.trim().toLowerCase());
+  // Lista de precios del cliente elegido: el carrito y el catálogo se recalculan al cambiar de cliente
+  const priceListId = creditCustomer ? listForCustomer(creditCustomer) : PUBLIC_LIST;
+  const listPrice = (p: { price: number; prices?: Record<string, number> }) => (priceListId === PUBLIC_LIST ? p.price : p.prices?.[priceListId] || p.price);
+  const basePrice = (p: CartItem) => p.basePrice ?? p.price;
+  useEffect(() => {
+    setCart((items) => items.map((item) => ({ ...item, price: listPrice({ price: basePrice(item), prices: item.prices }) })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceListId]);
   const creditAvailable = creditCustomer?.creditBalance ?? 0;
   const detailSale = sales.find((sale) => sale.id === detailId) || null;
   const printSale = sales.find((sale) => sale.id === printId) || null;
@@ -515,7 +526,7 @@ export default function SalesModule({
             : item,
         );
       }
-      return [...items, { ...product, quantity: 1 }];
+      return [...items, { ...product, basePrice: product.price, price: listPrice(product), quantity: 1 }];
     });
   };
 
@@ -852,7 +863,7 @@ export default function SalesModule({
                       {product.name}
                     </p>
                     <div className="mt-3 flex items-end justify-between">
-                      <p className="text-sm font-bold text-[#285e56]">{money(product.price)}</p>
+                      <p className="text-sm font-bold text-[#285e56]">{money(listPrice(product))}</p>
                       <p className="text-[9px] text-slate-400">
                         {product.stock} {product.unit}
                       </p>
@@ -875,6 +886,9 @@ export default function SalesModule({
                 </div>
                 <div className="mt-4">
                   <CustomerPicker value={customer} onChange={setCustomer} customers={customers} allowGeneral compact />
+                  {priceListId !== PUBLIC_LIST && (
+                    <p className="mt-1.5 text-[10px] font-semibold text-[#2f7468]">Precios de lista {listName(priceListId)}</p>
+                  )}
                   {creditAvailable > 0 && (
                     <p className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-[#347652]">
                       <Wallet size={11} /> Saldo a favor disponible: {money(creditAvailable)}

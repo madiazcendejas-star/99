@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { listForCustomer, listName, priceFor } from "./pricing";
 import { policies } from "./config";
 import {
   ArrowLeft,
@@ -48,7 +49,8 @@ export type QuoteBuilderResult = {
   discountAmount?: number;
   validity: string;
   notes: string;
-  priceList: CustomerType;
+  /** Nombre de la lista de precios aplicada */
+  priceList: string;
   status: "Borrador" | "Enviada";
 };
 
@@ -61,11 +63,6 @@ type CartItem = {
 const money = (value: number) =>
   value.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 
-const priceFor = (product: InventoryProduct, type: CustomerType) => {
-  if (type === "Mayorista") return product.wholesalePrice;
-  if (type === "Contratista") return product.contractorPrice;
-  return product.retailPrice;
-};
 
 export default function QuoteBuilder({
   initialCustomer,
@@ -112,8 +109,10 @@ export default function QuoteBuilder({
         .includes(productQuery.toLowerCase()),
   );
 
-  const priceList = selectedCustomer?.type || "Mostrador";
-  const calcOf = (item: CartItem) => lineTotals(priceFor(item.product, priceList), item.quantity, item.discount);
+  // Lista de precios del cliente (la asignada o la de su tipo); se guarda con su nombre
+  const priceListId = listForCustomer(selectedCustomer);
+  const priceList = listName(priceListId);
+  const calcOf = (item: CartItem) => lineTotals(priceFor(item.product, priceListId), item.quantity, item.discount);
   const totals = documentTotals(cart.map(calcOf), globalDiscount);
   const subtotal = totals.total;
   const tax = totals.tax;
@@ -180,7 +179,7 @@ export default function QuoteBuilder({
     onComplete({
       customer: selectedCustomer,
       lines: cart.map((item) => {
-        const unitPrice = priceFor(item.product, priceList);
+        const unitPrice = priceFor(item.product, priceListId);
         const calc = calcOf(item);
         return {
           sku: item.product.sku,
@@ -268,7 +267,7 @@ export default function QuoteBuilder({
                           Lista aplicada
                         </p>
                         <p className="mt-1 text-xs font-semibold text-[#2f7468]">
-                          {selectedCustomer.type}
+                          {priceList}
                         </p>
                       </div>
                       <button
@@ -328,7 +327,7 @@ export default function QuoteBuilder({
                             </span>
                           </span>
                           <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[9px] font-semibold text-slate-500">
-                            {customer.type}
+                            {listName(listForCustomer(customer))}
                           </span>
                         </button>
                       ))}
@@ -421,7 +420,7 @@ export default function QuoteBuilder({
                     <div className="mt-3 flex items-end justify-between">
                       <div>
                         <p className="text-sm font-bold text-[#285e56]">
-                          {money(priceFor(product, priceList))}
+                          {money(priceFor(product, priceListId))}
                         </p>
                         <p className="mt-0.5 text-[9px] text-slate-400">por {product.saleUnit}</p>
                       </div>
@@ -468,7 +467,7 @@ export default function QuoteBuilder({
               ) : (
                 <div className="space-y-4">
                   {cart.map((item) => {
-                    const price = priceFor(item.product, priceList);
+                    const price = priceFor(item.product, priceListId);
                     return (
                       <div
                         key={item.product.id}
@@ -650,8 +649,8 @@ export default function QuoteBuilder({
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
               Estás cambiando de <strong>{selectedCustomer?.businessName}</strong> a{" "}
               <strong>{pendingCustomer.businessName}</strong>. Todos los precios de la cotización se
-              actualizarán automáticamente de la lista <strong>{selectedCustomer?.type}</strong> a
-              la lista <strong>{pendingCustomer.type}</strong>.
+              actualizarán automáticamente de la lista <strong>{priceList}</strong> a
+              la lista <strong>{listName(listForCustomer(pendingCustomer))}</strong>.
             </p>
             <div className="mt-6 flex justify-end gap-3">
               <button className="secondary-button" onClick={() => setPendingCustomer(null)}>

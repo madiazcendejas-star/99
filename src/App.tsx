@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -17,6 +17,7 @@ import {
   IdCard,
   LayoutDashboard,
   Lock,
+  LogOut,
   Mail,
   MapPin,
   Menu,
@@ -52,6 +53,8 @@ import CustomersModule, {
 } from "./CustomersModule";
 import QuotePrintView from "./QuoteDocument";
 import CompanyLogo from "./CompanyLogo";
+import { LockScreen, LoginScreen, type LoginUser } from "./LoginScreen";
+import { listForCustomer, listName, priceFor, pricesOf } from "./pricing";
 import { applyConfig, company, initialCompany, initialPolicies, policies, type CompanyConfig, type Policies } from "./config";
 import OrdersModule, {
   initialOrders,
@@ -288,12 +291,7 @@ const taskSets: Record<Role, Task[]> = {
   ],
 };
 
-const priceForType = (product: InventoryProduct, type: CustomerType) =>
-  type === "Mayorista"
-    ? product.wholesalePrice
-    : type === "Contratista"
-      ? product.contractorPrice
-      : product.retailPrice;
+const priceForType = (product: InventoryProduct, type: CustomerType) => priceFor(product, listForCustomer({ type }));
 
 // Arma las partidas de las cotizaciones de ejemplo con el catálogo y la lista de precios del cliente
 const sampleQuote = (
@@ -325,7 +323,7 @@ const sampleQuote = (
     lines,
     subtotal: amount,
     tax: amount - amount / 1.16,
-    priceList: type,
+    priceList: listName(listForCustomer({ type })),
   };
 };
 
@@ -1386,6 +1384,12 @@ function StatCard({
 
 function App() {
   const [currentUserId, setCurrentUserId] = useState("COL-001");
+  // Sesión: nadie entra sin iniciar sesión; el PIN se habilita en el equipo después del primer acceso con correo
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [deviceReady, setDeviceReady] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [lockSwitch, setLockSwitch] = useState(false);
+  const lastActivity = useRef(Date.now());
   const [roles, setRoles] = useState<AccessRole[]>(initialRoles);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(initialAccounts);
   const [terminals, setTerminals] = useState<Terminal[]>(initialTerminals);
@@ -1524,7 +1528,7 @@ function App() {
     greeting: `Buenos días, ${currentUser.name.split(" ")[0]}`,
     description: roleData[role].description,
   };
-  const switchUser = (id: string) => {
+  const switchUser = (id: string, message?: string) => {
     const next = collaborators.find((c) => c.id === id);
     if (!next) return;
     setCurrentUserId(id);
@@ -1535,8 +1539,49 @@ function App() {
     setActiveNav(first ?? "Inicio");
     setFocus({});
     setNavKey((k) => k + 1);
-    showToast(`Ahora ves el sistema como ${next.name} · ${next.role}`);
+    showToast(message ?? `Ahora ves el sistema como ${next.name} · ${next.role}`);
   };
+
+  // ---------- Inicio de sesión, cambio de usuario y bloqueo ----------
+  const loginUsers: LoginUser[] = collaborators
+    .filter((c) => c.status === "Activo" && c.role !== NO_ACCESS_ROLE)
+    .map((c) => ({ id: c.id, name: c.name, role: c.role, email: c.email, pin: c.pin }));
+  const startSession = (id: string) => {
+    const same = id === sessionUserId;
+    setSessionUserId(id);
+    setDeviceReady(true);
+    setLocked(false);
+    lastActivity.current = Date.now();
+    const who = collaborators.find((c) => c.id === id);
+    if (same) showToast(`Bienvenido de nuevo, ${who?.name.split(" ")[0]}`);
+    else switchUser(id, `Sesión iniciada: ${who?.name} · ${who?.role}`);
+  };
+  const logout = () => {
+    setSessionUserId(null);
+    setLocked(false);
+    setProfileOpen(false);
+  };
+  // Si al colaborador le quitan el acceso o lo dan de baja, su sesión se cierra
+  useEffect(() => {
+    if (sessionUserId && !loginUsers.some((u) => u.id === sessionUserId)) logout();
+  });
+  // Bloqueo por inactividad (Configuración → Políticas)
+  useEffect(() => {
+    if (!sessionUserId || locked || !policyCfg.lockMinutes) return;
+    const touch = () => (lastActivity.current = Date.now());
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "wheel"];
+    events.forEach((e) => window.addEventListener(e, touch, { passive: true }));
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastActivity.current > policyCfg.lockMinutes * 60_000) {
+        setLockSwitch(false);
+        setLocked(true);
+      }
+    }, 5_000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, touch));
+      window.clearInterval(timer);
+    };
+  }, [sessionUserId, locked, policyCfg.lockMinutes]);
   const saveRole = (role: AccessRole, previousName?: string) => {
     setRoles((items) => (items.some((r) => r.id === role.id) ? items.map((r) => (r.id === role.id ? role : r)) : [...items.slice(0, -1), role, items[items.length - 1]]));
     if (previousName && previousName !== role.name)
@@ -2639,8 +2684,13 @@ function App() {
     showToast(`${quote.id} aceptada: se generó la venta ${saleId} y la orden ${orderId}`);
   };
 
+  if (!sessionUserId) return <LoginScreen users={loginUsers} onLogin={startSession} deviceReady={deviceReady} />;
+
   return (
     <div ref={topRef} className="min-h-screen bg-[#f4f7f6] text-[#162523]">
+      {locked && (
+        <LockScreen key={String(lockSwitch)} startSwitching={lockSwitch} user={loginUsers.find((u) => u.id === sessionUserId) ?? loginUsers[0]} users={loginUsers} onUnlock={startSession} onLogout={logout} />
+      )}
       {sidebarOpen && (
         <button
           className="fixed inset-0 z-30 bg-slate-950/30 lg:hidden"
@@ -2868,28 +2918,36 @@ function App() {
               </button>
               {profileOpen && (
                 <div className="dropdown right-0 w-64">
-                  <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                    Ver el sistema como
-                  </p>
-                  <div className="max-h-80 overflow-y-auto">
-                    {collaborators
-                      .filter((c) => c.status === "Activo" && c.role !== NO_ACCESS_ROLE)
-                      .map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={() => {
-                            switchUser(c.id);
-                            setProfileOpen(false);
-                          }}
-                          className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-50"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-xs font-semibold">{c.name}</span>
-                            <span className="block text-[10px] text-slate-400">{c.role}</span>
-                          </span>
-                          {c.id === currentUserId && <Check size={15} className="shrink-0 text-[#2f7468]" />}
-                        </button>
-                      ))}
+                  <div className="px-3 pb-3">
+                    <p className="text-sm font-semibold">{currentUser.name}</p>
+                    <p className="text-[11px] text-slate-400">
+                      {currentUser.email || "Sin correo"} · {userRole}
+                    </p>
+                  </div>
+                  <div className="border-t border-slate-100 pt-2">
+                    <button
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-slate-50"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        setLockSwitch(true);
+                        setLocked(true);
+                      }}
+                    >
+                      <Users size={14} className="text-slate-400" /> Cambiar de usuario (PIN)
+                    </button>
+                    <button
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-slate-50"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        setLockSwitch(false);
+                        setLocked(true);
+                      }}
+                    >
+                      <Lock size={14} className="text-slate-400" /> Bloquear ahora
+                    </button>
+                    <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-[#c9664f] hover:bg-[#fff6f3]" onClick={logout}>
+                      <LogOut size={14} /> Cerrar sesión
+                    </button>
                   </div>
                 </div>
               )}
@@ -2935,6 +2993,7 @@ function App() {
                   name: product.name,
                   category: product.category,
                   price: product.retailPrice,
+                  prices: pricesOf(product),
                   stock: Math.max(0, product.stock - product.reserved),
                   unit: product.saleUnit,
                   location: `${product.aisle}-${product.shelf}`,
@@ -2947,6 +3006,7 @@ function App() {
                       name: kit.name,
                       category: "Kits",
                       price: kit.retailPrice,
+                      prices: pricesOf(kit),
                       stock: kitAvailability(kit, inventoryProducts).available,
                       unit: "kit",
                       location: "Kit",
@@ -3085,6 +3145,7 @@ function App() {
               }}
               onOpen={navigate}
               onAddCustomer={(customer) => setCustomers((items) => [customer, ...items])}
+              onUpdateCustomer={(customer) => setCustomers((items) => items.map((c) => (c.id === customer.id ? customer : c)))}
               onToast={showToast}
             />
           ) : activeNav === "Órdenes" ? (

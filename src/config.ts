@@ -20,7 +20,13 @@ export type CompanyConfig = {
   logo: string;
 };
 
+export type PriceList = { id: string; name: string };
+
 export type Policies = {
+  /** Listas de precios (la primera, "publico", es el precio de mostrador) */
+  priceLists: PriceList[];
+  /** Minutos sin uso antes de pedir el PIN otra vez (0 = nunca) */
+  lockMinutes: number;
   /** Apartados */
   layawayMinPct: number;
   layawayDays: number;
@@ -56,6 +62,13 @@ export const initialCompany: CompanyConfig = {
 };
 
 export const initialPolicies: Policies = {
+  priceLists: [
+    { id: "publico", name: "Público" },
+    { id: "mayoreo", name: "Mayoreo" },
+    { id: "plomero", name: "Plomero" },
+    { id: "distribuidor", name: "Distribuidor" },
+  ],
+  lockMinutes: 10,
   layawayMinPct: 20,
   layawayDays: 30,
   layawayExtensionDays: 15,

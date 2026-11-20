@@ -561,6 +561,37 @@ function PoliciesSettings({ values, update }: { values: Policies; update: <K ext
           Estas reglas las aplica todo el sistema: punto de venta, apartados, pedidos especiales, devoluciones, kits, cotizaciones y los textos de los documentos impresos. Al guardar, los cambios aplican a las operaciones nuevas; las que ya existen conservan sus fechas.
         </p>
       </section>
+      <SettingsCard eyebrow="Ventas" title="Listas de precios" description="Cada producto tiene un precio por lista y cada cliente una lista asignada. La primera es el precio de mostrador.">
+        <div className="space-y-2">
+          {values.priceLists.map((list, index) => (
+            <div key={list.id} className="flex items-center gap-3">
+              <span className="w-6 text-center text-xs font-bold text-slate-300">{index + 1}</span>
+              <input
+                aria-label={`Nombre de la lista ${index + 1}`}
+                value={list.name}
+                onChange={(e) => update("priceLists", values.priceLists.map((l) => (l.id === list.id ? { ...l, name: e.target.value } : l)))}
+                className="form-input max-w-xs"
+              />
+              {index === 0 ? (
+                <span className="text-[10px] text-slate-400">Precio de mostrador · no se puede quitar</span>
+              ) : (
+                <button className="text-[11px] font-semibold text-[#c9664f]" onClick={() => update("priceLists", values.priceLists.filter((l) => l.id !== list.id))}>
+                  Quitar
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        {values.priceLists.length < 8 && (
+          <button
+            className="secondary-button mt-4 min-h-9"
+            onClick={() => update("priceLists", [...values.priceLists, { id: `lista-${Date.now().toString(36)}`, name: `Lista ${values.priceLists.length + 1}` }])}
+          >
+            Agregar lista
+          </button>
+        )}
+        <p className="mt-4 text-[11px] text-slate-500">Si un producto no tiene precio capturado en una lista, se vende a precio de mostrador. Los clientes de una lista que quites pasan a precio de mostrador.</p>
+      </SettingsCard>
       <SettingsCard eyebrow="Ventas" title="Apartados" description="Material que el cliente deja apartado y paga en abonos.">
         <div className="grid gap-4 sm:grid-cols-3">
           <PolicyNumber label="Pago mínimo para apartar" value={values.layawayMinPct} onChange={(v) => update("layawayMinPct", v)} suffix="%" min={1} max={100} />
@@ -590,6 +621,11 @@ function PoliciesSettings({ values, update }: { values: Policies; update: <K ext
         <div className="grid gap-4 sm:grid-cols-3">
           <PolicyNumber label="Descuento vs. piezas sueltas" value={values.kitDiscountPct} onChange={(v) => update("kitDiscountPct", v)} suffix="%" min={0} max={90} />
           <PolicyNumber label="Margen mínimo" value={values.kitMinMarginPct} onChange={(v) => update("kitMinMarginPct", v)} suffix="%" min={0} max={90} />
+        </div>
+      </SettingsCard>
+      <SettingsCard eyebrow="Seguridad" title="Bloqueo por inactividad" description="Después de este tiempo sin usarse, el sistema pide el PIN del colaborador para seguir.">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <PolicyNumber label="Bloquear después de" value={values.lockMinutes} onChange={(v) => update("lockMinutes", v)} suffix="min" min={0} max={240} hint="0 = no bloquear" />
         </div>
       </SettingsCard>
       <SettingsCard eyebrow="Ventas" title="Cotizaciones">

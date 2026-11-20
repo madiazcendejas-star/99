@@ -89,11 +89,11 @@ export const DEFAULT_SOCIAL_RATE = 0.3;
 export const initialCollaborators: Collaborator[] = [
   { id: "COL-001", name: "Carlos Mendoza", position: "Director general", area: "Administración", role: "Administrador", pin: "1234", phone: "55 4182 9050", email: "carlos@aquaplus.mx", startISO: "2019-03-01", status: "Activo", salary: 15000, frequency: "Mensual", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "BBVA ···4021", emergencyContact: "Laura Mendoza · 55 1100 2233", notes: "" },
   { id: "COL-002", name: "Laura Gómez", position: "Gerente de sucursal", area: "Administración", role: "Gerente", pin: "5678", phone: "55 3011 8890", email: "laura@aquaplus.mx", startISO: "2021-06-15", status: "Activo", salary: 12000, frequency: "Mensual", socialSecurity: true, commissionRate: 0.5, monthlyGoal: 0, bank: "Santander ···7714", emergencyContact: "", notes: "Autoriza devoluciones y descuentos." },
-  { id: "COL-003", name: "Ana López", position: "Ejecutiva de ventas", area: "Ventas", role: "Vendedor", phone: "55 2290 1185", email: "ana@aquaplus.mx", startISO: "2022-01-10", status: "Activo", salary: 6500, frequency: "Quincenal", socialSecurity: true, commissionRate: 2, monthlyGoal: 180000, bank: "Banorte ···1132", emergencyContact: "", notes: "" },
-  { id: "COL-004", name: "Luis Ortega", position: "Jefe de almacén", area: "Almacén", role: "Almacenista", phone: "55 6620 4471", email: "", startISO: "2020-09-01", status: "Activo", salary: 2800, frequency: "Semanal", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "BanCoppel ···8810", emergencyContact: "", notes: "" },
-  { id: "COL-005", name: "Mario Vega", position: "Auxiliar de almacén", area: "Almacén", role: "Almacenista", phone: "55 7781 0092", email: "", startISO: "2024-04-22", status: "Activo", salary: 2300, frequency: "Semanal", socialSecurity: false, commissionRate: 0, monthlyGoal: 0, bank: "Efectivo", emergencyContact: "", notes: "Sin seguro social (eventual)." },
-  { id: "COL-006", name: "Roberto García", position: "Chofer repartidor", area: "Reparto", role: "Chofer", phone: "55 4410 9823", email: "", startISO: "2021-02-01", status: "Activo", salary: 2600, frequency: "Semanal", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "BBVA ···5530", emergencyContact: "", notes: "" },
-  { id: "COL-007", name: "Manuel Torres", position: "Chofer repartidor", area: "Reparto", role: "Chofer", phone: "55 8812 3304", email: "", startISO: "2023-07-17", status: "Activo", salary: 2500, frequency: "Semanal", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "BBVA ···2219", emergencyContact: "", notes: "" },
+  { id: "COL-003", pin: "2468", name: "Ana López", position: "Ejecutiva de ventas", area: "Ventas", role: "Vendedor", phone: "55 2290 1185", email: "ana@aquaplus.mx", startISO: "2022-01-10", status: "Activo", salary: 6500, frequency: "Quincenal", socialSecurity: true, commissionRate: 2, monthlyGoal: 180000, bank: "Banorte ···1132", emergencyContact: "", notes: "" },
+  { id: "COL-004", pin: "1357", name: "Luis Ortega", position: "Jefe de almacén", area: "Almacén", role: "Almacenista", phone: "55 6620 4471", email: "", startISO: "2020-09-01", status: "Activo", salary: 2800, frequency: "Semanal", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "BanCoppel ···8810", emergencyContact: "", notes: "" },
+  { id: "COL-005", pin: "8642", name: "Mario Vega", position: "Auxiliar de almacén", area: "Almacén", role: "Almacenista", phone: "55 7781 0092", email: "", startISO: "2024-04-22", status: "Activo", salary: 2300, frequency: "Semanal", socialSecurity: false, commissionRate: 0, monthlyGoal: 0, bank: "Efectivo", emergencyContact: "", notes: "Sin seguro social (eventual)." },
+  { id: "COL-006", pin: "9753", name: "Roberto García", position: "Chofer repartidor", area: "Reparto", role: "Chofer", phone: "55 4410 9823", email: "", startISO: "2021-02-01", status: "Activo", salary: 2600, frequency: "Semanal", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "BBVA ···5530", emergencyContact: "", notes: "" },
+  { id: "COL-007", pin: "3141", name: "Manuel Torres", position: "Chofer repartidor", area: "Reparto", role: "Chofer", phone: "55 8812 3304", email: "", startISO: "2023-07-17", status: "Activo", salary: 2500, frequency: "Semanal", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "BBVA ···2219", emergencyContact: "", notes: "" },
   { id: "COL-008", name: "Jesús Hernández", position: "Chofer / ayudante", area: "Reparto", role: "Sin acceso", phone: "55 9021 4456", email: "", startISO: "2025-01-06", status: "Activo", salary: 2200, frequency: "Semanal", socialSecurity: false, commissionRate: 0, monthlyGoal: 0, bank: "Efectivo", emergencyContact: "", notes: "" },
 ];
 export const initialAdvances: Advance[] = [{ id: "AD-001", collaboratorId: "COL-004", dateISO: "2026-11-09", amount: 1500, installments: 3, remaining: 1000, reason: "Adelanto por gastos médicos" }];
@@ -373,7 +373,7 @@ export default function CollaboratorsModule({
                   </td>
                   <td className="py-3.5 text-slate-600">
                     {c.role === NO_ACCESS_ROLE ? <span className="text-slate-300">Sin acceso</span> : c.role}
-                    {c.pin && <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] text-[#2f7468]"><ShieldCheck size={10} /> autoriza</span>}
+                    {c.pin && c.role !== NO_ACCESS_ROLE && <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] text-[#2f7468]"><ShieldCheck size={10} /> PIN</span>}
                   </td>
                   <td className="py-3.5 text-right">
                     <p className="font-semibold">{canPayroll ? money(c.salary) : "•••"}</p>
@@ -775,7 +775,7 @@ function CollaboratorModal({ collaborator, socialRate, isNew, onClose, onSave, r
   const [f, setF] = useState(collaborator);
   const set = <K extends keyof Collaborator>(k: K, v: Collaborator[K]) => setF((x) => ({ ...x, [k]: v }));
   const canAuthorize = can(roles, f.role, "ventas.autorizar");
-  const valid = f.name.trim() && f.position.trim() && (f.salary > 0 || !canPayroll) && (!canAuthorize || !f.pin || /^\d{4}$/.test(f.pin));
+  const valid = f.name.trim() && f.position.trim() && (f.salary > 0 || !canPayroll) && (!f.pin || /^\d{4}$/.test(f.pin));
   return (
     <Shell
       wide
@@ -901,14 +901,17 @@ function CollaboratorModal({ collaborator, socialRate, isNew, onClose, onSave, r
                   ))}
                 </select>
               </label>
-              {canAuthorize && (
+              {f.role !== NO_ACCESS_ROLE && (
                 <label className="form-label">
-                  PIN para autorizar
+                  PIN de acceso
                   <input inputMode="numeric" maxLength={4} value={f.pin ?? ""} onChange={(e) => set("pin", e.target.value.replace(/\D/g, ""))} className="form-input tracking-[0.3em]" placeholder="4 dígitos" />
                 </label>
               )}
             </div>
-            <p className="mt-1.5 text-[10px] text-slate-400">Los permisos de cada rol se configuran en Configuración → Roles y permisos.</p>
+            <p className="mt-1.5 text-[10px] text-slate-400">
+              Su <strong>correo</strong> es su usuario para entrar con contraseña; el <strong>PIN</strong> sirve para el cambio rápido de usuario y para desbloquear.
+              {canAuthorize ? " Con este rol, su PIN también autoriza devoluciones y descuentos." : ""} Los permisos se configuran en Configuración → Roles y permisos.
+            </p>
           </div>
         </div>
       </div>
