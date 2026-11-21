@@ -38,4 +38,4 @@ Para generar la versión de producción: `npm run build` (queda en `dist/`).
 - Los datos son de ejemplo y viven en memoria: se reinician al recargar la página.
 - La fecha de trabajo del prototipo es el 18 de noviembre de 2026.
 - **Inicio de sesión (modo demostración):** entra con el correo de un colaborador (por ejemplo `carlos@aquaplus.mx`) y la contraseña `demo`. Después del primer acceso, el equipo permite el cambio rápido de usuario con PIN (Carlos 1234, Laura 5678, Ana 2468). El sistema se bloquea tras unos minutos sin uso (Configuración → Políticas).
-- **Base de datos:** el esquema de Supabase con protección por empresa está en `supabase/` (ver `supabase/README.md`).
+- **Base de datos:** el esquema de Supabase con protección por empresa está en `supabase/` (ver `supabase/README.md`). La migración de datos del cliente piloto está en `supabase/migraciones-datos/`.

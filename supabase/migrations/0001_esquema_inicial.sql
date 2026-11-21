@@ -505,7 +505,10 @@ create table public.ordenes_surtido (
   folio text not null,
   tipo text not null default 'Surtido' check (tipo in ('Surtido', 'Recepción')),
   venta_id uuid references public.ventas(id),
+  cotizacion_id uuid references public.cotizaciones(id),
   compra_id uuid,
+  cliente_datos jsonb,
+  total numeric not null default 0,
   estado text not null default 'Por surtir',
   entrega text,
   partidas jsonb not null default '[]'::jsonb,
@@ -655,6 +658,7 @@ create table public.bitacora (
   antes jsonb,
   despues jsonb,
   usuario uuid default auth.uid(),
+  usuario_nombre text,
   creado_en timestamptz not null default now()
 );
 create index on public.bitacora (empresa_id, creado_en);
@@ -765,12 +769,11 @@ grant usage on schema app to authenticated, anon;
 -- Crea la empresa, sus roles base, sus listas de precios y deja al
 -- usuario que la crea como Administrador.
 -- ---------------------------------------------------------------------
-create or replace function public.crear_empresa(p_nombre text, p_nombre_admin text)
+-- Roles base y listas de precios de una empresa nueva
+create or replace function app.preparar_empresa(e uuid)
 returns uuid language plpgsql security definer set search_path = public as $$
-declare e uuid; admin_rol uuid;
+declare admin_rol uuid;
 begin
-  if auth.uid() is null then raise exception 'Inicia sesión para crear una empresa'; end if;
-  insert into empresas (nombre_comercial) values (p_nombre) returning id into e;
   insert into roles (empresa_id, nombre, permisos, descuento_maximo, bloqueado) values
     (e, 'Administrador', '{}', 100, true) returning id into admin_rol;
   insert into roles (empresa_id, nombre, permisos, descuento_maximo) values
@@ -782,6 +785,18 @@ begin
   insert into roles (empresa_id, nombre, permisos, bloqueado) values (e, 'Sin acceso', '{}', true);
   insert into listas_precio (empresa_id, clave, nombre, orden, es_publico) values
     (e, 'publico', 'Público', 0, true), (e, 'mayoreo', 'Mayoreo', 1, false);
+  return admin_rol;
+end;
+$$;
+revoke execute on function app.preparar_empresa(uuid) from anon, authenticated, public;
+
+create or replace function public.crear_empresa(p_nombre text, p_nombre_admin text)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare e uuid; admin_rol uuid;
+begin
+  if auth.uid() is null then raise exception 'Inicia sesión para crear una empresa'; end if;
+  insert into empresas (nombre_comercial) values (p_nombre) returning id into e;
+  admin_rol := app.preparar_empresa(e);
   insert into colaboradores (empresa_id, user_id, nombre, puesto, area, rol_id, correo)
   select e, auth.uid(), p_nombre_admin, 'Administrador', 'Administración', admin_rol, u.email
   from auth.users u where u.id = auth.uid();
@@ -790,3 +805,24 @@ end;
 $$;
 revoke execute on function public.crear_empresa(text, text) from anon, public;
 grant execute on function public.crear_empresa(text, text) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- Primer acceso de un colaborador ya dado de alta (por ejemplo, migrado):
+-- si su correo coincide con el de su cuenta de Supabase Auth, se vincula.
+-- ---------------------------------------------------------------------
+create or replace function public.reclamar_acceso()
+returns integer language plpgsql security definer set search_path = public as $$
+declare n integer;
+begin
+  if auth.uid() is null then raise exception 'Inicia sesión primero'; end if;
+  update colaboradores c set user_id = auth.uid()
+  from auth.users u
+  where u.id = auth.uid() and c.user_id is null and c.estado = 'Activo'
+    and u.email_confirmed_at is not null and lower(c.correo) = lower(u.email)
+    and not exists (select 1 from colaboradores x where x.empresa_id = c.empresa_id and x.user_id = auth.uid());
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+revoke execute on function public.reclamar_acceso() from anon, public;
+grant execute on function public.reclamar_acceso() to authenticated;
