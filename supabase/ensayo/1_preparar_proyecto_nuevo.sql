@@ -740,6 +740,14 @@ alter table public.colaboradores enable row level security;
 create policy ver on public.colaboradores for select to authenticated using (app.es_miembro(empresa_id));
 create policy administrar on public.colaboradores for all to authenticated using (app.es_admin(empresa_id)) with check (app.es_admin(empresa_id));
 
+-- Permisos de acceso (los proyectos nuevos de Supabase no los dan automáticamente).
+-- La protección real la dan las políticas RLS: estos permisos solo habilitan las tablas.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+revoke insert, update, delete on public.bitacora from authenticated;
+grant insert on public.prospectos to anon;
+
 -- Columnas sensibles: el PIN cifrado nunca se lee; sueldo y datos de nómina solo por la vista
 revoke select on public.colaboradores from anon, authenticated;
 grant select (id, empresa_id, user_id, nombre, puesto, area, rol_id, correo, telefono, tiene_pin, fecha_ingreso, estado,

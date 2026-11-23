@@ -11,6 +11,3 @@ create function auth.uid() returns uuid language sql stable as $$ select nullif(
 create schema extensions;
 grant usage on schema public, auth, extensions to anon, authenticated;
 grant execute on function auth.uid() to anon, authenticated;
-alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
-alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
