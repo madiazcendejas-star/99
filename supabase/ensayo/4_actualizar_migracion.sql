@@ -1,5 +1,5 @@
--- ENSAYO · ACTUALIZACIÓN 2 · Ventas «entregadas» por confirmar y faltantes cancelados
--- Se corre en aquaplus-99-ensayo. Actualiza la migración y repite el ensayo desde cero.
+-- ENSAYO · ACTUALIZACIÓN · Ajustes de la migración (surtidos parciales, ventas entregadas, descuentos no registrados)
+-- Se corre en aquaplus-99-ensayo. Actualiza la migración y repite el ensayo desde cero, sin volver a copiar datos.
 
 alter table public.ventas add column if not exists pendiente_entrega jsonb;
 
@@ -286,6 +286,13 @@ begin
   cross join lateral jsonb_array_elements(case when jsonb_typeof(coalesce(v.partidas, v.items)) = 'array' then coalesce(v.partidas, v.items) else '[]'::jsonb end) i
   left join productos p on p.empresa_id = e and p.id = migracion.uuid_o_nulo(coalesce(i ->> 'producto_id', i ->> 'id'))
   where not exists (select 1 from legado.ventas_detalle d where d.venta_id = v.id);
+
+  -- Ventas editadas en el sistema anterior sin recalcular (total menor que sus partidas y sin faltante
+  -- registrado): el total cobrado es el dato correcto y la diferencia queda como descuento
+  update ventas n set descuento_monto = round(x.s - n.total, 2),
+         notas = concat_ws(E'\n', n.notas, 'Diferencia del sistema anterior registrada como descuento: $' || round(x.s - n.total, 2))
+  from (select venta_id, sum(importe) s from venta_partidas where empresa_id = e group by venta_id) x
+  where n.empresa_id = e and x.venta_id = n.id and n.descuento_monto = 0 and x.s - n.total > 1;
 
   -- Pagos: las ventas pagadas quedan cobradas por su total; las pendientes, por su anticipo
   insert into venta_pagos (empresa_id, venta_id, cliente_id, metodo, monto, recibido, cambio, referencia, recibido_por, creado_en)
