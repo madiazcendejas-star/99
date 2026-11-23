@@ -34,6 +34,12 @@ begin
         + (select coalesce(sum(jsonb_array_length(coalesce(v.partidas, v.items))), 0) from legado.ventas v
            where jsonb_typeof(coalesce(v.partidas, v.items)) = 'array' and not exists (select 1 from legado.ventas_detalle d where d.venta_id = v.id)),
       (select count(*) from venta_partidas where empresa_id = e), null
+    union all select 'Importe pendiente por entregar (backorder, no cobrado)',
+      (select round(coalesce(sum(coalesce(migracion.num(x, 'subtotal', 'importe'), migracion.num(x, 'cantidad') * migracion.num(x, 'precio_unitario', 'precioVenta', 'precio'), 0)), 0), 2)
+       from legado.ventas lv cross join lateral jsonb_array_elements(case when jsonb_typeof(lv.partidas_backorder) = 'array' then lv.partidas_backorder else '[]'::jsonb end) x),
+      (select round(coalesce(sum(coalesce(migracion.num(x, 'subtotal', 'importe'), migracion.num(x, 'cantidad') * migracion.num(x, 'precio_unitario', 'precioVenta', 'precio'), 0)), 0), 2)
+       from ventas v cross join lateral jsonb_array_elements(coalesce(v.pendiente_entrega, '[]'::jsonb)) x where v.empresa_id = e),
+      'Lo que faltó surtir: queda guardado en cada venta'
     union all select 'Ventas sin partidas', 0, (select count(*) from ventas v where v.empresa_id = e and not exists (select 1 from venta_partidas p where p.venta_id = v.id)), 'Revisar si es mayor a 0'
     union all select 'Ventas cuyo total no coincide con sus partidas (> $1)', 0,
       (select count(*) from ventas v where v.empresa_id = e and abs(v.total + v.descuento_monto - (select coalesce(sum(importe), 0) from venta_partidas p where p.venta_id = v.id)) > 1),

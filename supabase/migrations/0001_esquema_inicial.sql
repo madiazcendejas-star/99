@@ -411,6 +411,8 @@ create table public.ventas (
   caja_sesion_id uuid references public.caja_sesiones(id),
   ruta_id uuid,
   oculta_iva boolean not null default false,
+  -- Partidas que faltó surtir (backorder): no se cobraron y quedan por entregar
+  pendiente_entrega jsonb,
   notas text,
   creado_por text,
   legacy_id text,

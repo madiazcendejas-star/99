@@ -238,13 +238,31 @@ begin
          v.id::text, coalesce(v.created_at, v.fecha, now())
   from legado.ventas v;
 
-  -- Partidas: ventas_detalle es la fuente principal; si una venta no tiene detalle, se usan sus JSON
+  -- Partidas: ventas_detalle es la fuente principal; si una venta no tiene detalle, se usan sus JSON.
+  -- En surtidos parciales, ventas_detalle trae lo PEDIDO y partidas_backorder lo que faltó surtir:
+  -- la partida queda con lo surtido y cobrado (pedido − pendiente) y lo pendiente se guarda en la venta.
   insert into venta_partidas (empresa_id, venta_id, producto_id, sku, nombre, cantidad, cantidad_surtida, unidad, precio_unitario, costo_unitario, importe)
-  select e, n.id, p.id, coalesce(d.sku, p.sku), coalesce(d.nombre, p.nombre, 'Partida'), coalesce(d.cantidad, 1), coalesce(d.cantidad_surtida, d.cantidad, 0),
-         p.unidad_venta, coalesce(d.precio_unitario, 0), p.costo, coalesce(d.subtotal, coalesce(d.cantidad, 1) * coalesce(d.precio_unitario, 0))
+  select e, n.id, p.id, coalesce(d.sku, p.sku), coalesce(d.nombre, p.nombre, 'Partida'),
+         greatest(coalesce(d.cantidad, 1) - coalesce(b.cantidad, 0), 0),
+         greatest(coalesce(d.cantidad, 1) - coalesce(b.cantidad, 0), 0),
+         p.unidad_venta, coalesce(d.precio_unitario, 0), p.costo,
+         round(greatest(coalesce(d.subtotal, coalesce(d.cantidad, 1) * coalesce(d.precio_unitario, 0)) - coalesce(b.importe, 0), 0), 2)
   from legado.ventas_detalle d
   join ventas n on n.empresa_id = e and n.legacy_id = d.venta_id::text
-  left join productos p on p.empresa_id = e and p.id = d.producto_id;
+  left join productos p on p.empresa_id = e and p.id = d.producto_id
+  left join lateral (
+    select sum(coalesce(migracion.num(x, 'cantidad'), 0)) cantidad,
+           sum(coalesce(migracion.num(x, 'subtotal', 'importe'), migracion.num(x, 'cantidad') * migracion.num(x, 'precio_unitario', 'precioVenta', 'precio'), 0)) importe
+    from legado.ventas lv
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(lv.partidas_backorder) = 'array' then lv.partidas_backorder else '[]'::jsonb end) x
+    where lv.id = d.venta_id
+      and (coalesce(x ->> 'producto_id', x ->> 'id') = d.producto_id::text or (d.producto_id is null and x ->> 'sku' = d.sku))
+  ) b on true;
+
+  update ventas n set pendiente_entrega = lv.partidas_backorder
+  from legado.ventas lv
+  where n.empresa_id = e and n.legacy_id = lv.id::text
+    and jsonb_typeof(lv.partidas_backorder) = 'array' and jsonb_array_length(lv.partidas_backorder) > 0;
 
   insert into venta_partidas (empresa_id, venta_id, producto_id, sku, nombre, cantidad, cantidad_surtida, unidad, precio_unitario, costo_unitario, importe)
   select e, n.id, p.id, coalesce(i ->> 'sku', p.sku), coalesce(i ->> 'nombre', p.nombre, 'Partida'), coalesce(migracion.num(i, 'cantidad'), 1),

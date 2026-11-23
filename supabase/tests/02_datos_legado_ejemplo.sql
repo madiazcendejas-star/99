@@ -123,3 +123,10 @@ values (gen_random_uuid(), '90000000-0000-0000-0000-000000000001', 'a0000000-000
 
 insert into legado.auditoria_logs (id, tabla, operacion, registro_id, datos_anteriores, datos_nuevos, usuario, created_at)
 select gen_random_uuid(), 'productos', 'UPDATE', 'x', '{"a":1}', '{"a":2}', 'admin', now() - (g || ' minutes')::interval from generate_series(1, 20) g;
+
+-- Surtido parcial (como las notas NV del sistema real): el detalle trae lo pedido,
+-- partidas_backorder lo que faltó surtir, y el total es lo cobrado (pedido − pendiente)
+update legado.ventas set estado_surtido = 'surtido_parcial', total = 670, subtotal = 577.59, iva = 92.41,
+  partidas_backorder = '[{"producto_id":"a0000000-0000-0000-0000-000000000002","sku":"SKU-002","cantidad":1,"precio_unitario":60,"subtotal":60},
+                         {"id":"a0000000-0000-0000-0000-000000000003","sku":"SKU-003","cantidad":1,"precioVenta":70,"subtotal":70}]'
+where id = 1;
