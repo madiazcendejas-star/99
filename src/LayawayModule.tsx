@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TODAY_ISO } from "./entorno";
 import { policies } from "./config";
 import {
   ArrowDownLeft,
@@ -24,7 +25,7 @@ import CustomerPicker from "./CustomerPicker";
 // ---------- Políticas ----------
 // Reglas configurables en Configuración → Políticas
 export const layawayRules = () => ({ min: policies.layawayMinPct / 100, days: policies.layawayDays, extension: policies.layawayExtensionDays });
-const TODAY_ISO = "2026-11-18";
+
 
 // ---------- Tipos ----------
 export type PayMethodL = "Efectivo" | "Tarjeta" | "Transferencia" | "Saldo a favor";

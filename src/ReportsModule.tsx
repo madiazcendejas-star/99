@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { DETAIL_FROM, HISTORY_FROM, LIVE, TODAY_ISO } from "./entorno";
 import CompanyLogo from "./CompanyLogo";
 import {
   ArrowUpRight,
@@ -57,9 +58,9 @@ export const defaultFixedExpenses: FixedExpense[] = [
 ];
 
 // ---------- Fechas ----------
-const TODAY_ISO = "2026-11-18";
+
 /** Inicio de los datos detallados del sistema; antes se usa el histórico de ventas */
-const DETAIL_FROM = "2026-11-16";
+
 const MONTHS: Record<string, string> = { ene: "01", feb: "02", mar: "03", abr: "04", may: "05", jun: "06", jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12" };
 const isoOf = (text?: string) => {
   const match = text?.match(/(\d{1,2}) (\w{3}) (\d{4})/);
@@ -79,7 +80,7 @@ const longLabel = (iso: string) =>
 const weekday = (iso: string) => new Date(`${iso}T12:00:00`).getDay();
 
 type Range = { from: string; to: string; label: string };
-const HISTORY_FROM = "2026-09-01";
+
 const rangeOf = (period: PeriodKey, custom?: { from: string; to: string }): { current: Range; previous: Range } => {
   if (period === "Rango" && custom) {
     const length = daysBetween(custom.from, custom.to);
@@ -143,7 +144,7 @@ const seeded = (seed: number) => () => {
   seed = (seed * 1664525 + 1013904223) % 4294967296;
   return seed / 4294967296;
 };
-const HISTORY: Record<string, Day> = (() => {
+const HISTORY: Record<string, Day> = LIVE ? {} : (() => {
   const rand = seeded(9917);
   const result: Record<string, Day> = {};
   for (let iso = "2026-09-01"; iso < DETAIL_FROM; iso = shift(iso, 1)) {

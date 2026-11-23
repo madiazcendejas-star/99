@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TODAY_TEXT } from "./entorno";
 import { useEffect, useRef } from "react";
 import PickingPrintView from "./PickingDocument";
 import { staff } from "./staff";
@@ -828,7 +829,7 @@ const lineStyles: Record<LineState, { badge: string; row: string; dot: string }>
   "Sin surtir": { badge: "bg-[#fff0eb] text-[#c9664f]", row: "bg-[#fff8f5]", dot: "border-[#e5785f] bg-[#fff0eb] text-[#c9664f]" },
 };
 
-const stamp = () => `18 nov 2026 · ${new Date().toTimeString().slice(0, 5)}`;
+const stamp = () => `${TODAY_TEXT} · ${new Date().toTimeString().slice(0, 5)}`;
 
 function PickingView({
   order,

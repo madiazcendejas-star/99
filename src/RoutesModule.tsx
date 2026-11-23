@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TODAY_ISO, TODAY_TEXT, TOMORROW_ISO } from "./entorno";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -190,13 +191,13 @@ const hours = (minutes: number) =>
 const money = (value: number) =>
   value.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 
-const TODAY_ISO = "2026-11-18";
-const TOMORROW_ISO = "2026-11-19";
+
+
 const displayDate = (iso: string) =>
   new Date(`${iso}T12:00:00`)
     .toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
     .replace(".", "");
-const stamp = () => `18 nov 2026 · ${new Date().toTimeString().slice(0, 5)}`;
+const stamp = () => `${TODAY_TEXT} · ${new Date().toTimeString().slice(0, 5)}`;
 
 export const initialRoutePlans: RoutePlan[] = [
   {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TODAY_ISO } from "./entorno";
 import { policies } from "./config";
 import {
   ArrowUpRight,
@@ -27,7 +28,7 @@ import CustomerPicker from "./CustomerPicker";
 
 // ---------- Políticas ----------
 // Reglas configurables en Configuración → Políticas
-const TODAY_ISO = "2026-11-18";
+
 
 // ---------- Tipos ----------
 export type SpecialStatus = "Por pedir" | "Pedido al proveedor" | "Recibido" | "Avisado" | "Entregado" | "Cancelado";

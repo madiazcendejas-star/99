@@ -1,4 +1,5 @@
 import { Printer, X } from "lucide-react";
+import { TODAY_TEXT } from "./entorno";
 import CompanyLogo from "./CompanyLogo";
 import { company } from "./QuoteDocument";
 import type { Sale } from "./SalesModule";
@@ -18,7 +19,7 @@ export default function CashPrintView({
   onClose: () => void;
 }) {
   const counted = mode === "Z" ? session.counted : undefined;
-  const now = `18 nov 2026 · ${new Date().toTimeString().slice(0, 5)}`;
+  const now = `${TODAY_TEXT} · ${new Date().toTimeString().slice(0, 5)}`;
   const rows = counted
     ? [
         ["Efectivo", summary.expectedCash, counted.cash],

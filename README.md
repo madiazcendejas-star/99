@@ -14,6 +14,14 @@ Abre la dirección que muestra la terminal (normalmente http://localhost:5173).
 
 Para generar la versión de producción: `npm run build` (queda en `dist/`).
 
+## Modo demostración y modo conectado
+
+- **Demostración** (por omisión): datos de ejemplo en el navegador y fecha fija del 18 nov 2026. Es lo que publica GitHub Pages.
+- **Conectado:** con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` (ver `.env.example`):
+  - el inicio de sesión es el de Supabase y se cargan los datos reales de la empresa del usuario;
+  - la fecha es la de hoy;
+  - en esta primera versión es de **consulta**: los cambios todavía no se guardan en la base de datos.
+
 ## Vista rápida sin instalar nada
 
 `prototipo/index.html` es el prototipo completo en un solo archivo. Ábrelo con doble clic en el navegador.

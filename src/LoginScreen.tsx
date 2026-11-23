@@ -165,16 +165,41 @@ function Frame({ children, footer }: { children: React.ReactNode; footer?: React
 }
 
 /** Pantalla de inicio de sesión: correo y contraseña, o PIN en un equipo donde ya se entró */
-export function LoginScreen({ users, onLogin, deviceReady }: { users: LoginUser[]; onLogin: (id: string) => void; deviceReady: boolean }) {
+export function LoginScreen({
+  users,
+  onLogin,
+  deviceReady,
+  onPasswordLogin,
+  notice,
+}: {
+  users: LoginUser[];
+  onLogin: (id: string) => void;
+  deviceReady: boolean;
+  /** Modo conectado: valida correo y contraseña en Supabase; devuelve un mensaje si falla */
+  onPasswordLogin?: (email: string, password: string) => Promise<string | null>;
+  notice?: string;
+}) {
+  const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"password" | "pin">(deviceReady ? "pin" : "password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const throttle = useThrottle();
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (throttle.wait > 0) return;
+    if (throttle.wait > 0 || busy) return;
+    if (onPasswordLogin) {
+      setBusy(true);
+      setError("");
+      const message = await onPasswordLogin(email, password);
+      setBusy(false);
+      if (message) {
+        const n = throttle.fail();
+        setError(n >= MAX_TRIES ? "" : message);
+      }
+      return;
+    }
     const user = users.find((u) => u.email && u.email.toLowerCase() === email.trim().toLowerCase());
     if (user && password === DEMO_PASSWORD) {
       throttle.reset();
@@ -188,7 +213,7 @@ export function LoginScreen({ users, onLogin, deviceReady }: { users: LoginUser[
   return (
     <Frame
       footer={
-        mode === "password" && (
+        mode === "password" && !onPasswordLogin && (
           <div className="mt-4 rounded-2xl border border-dashed border-[#cfe3dd] bg-white/60 p-4 text-[11px] text-slate-500">
             <p className="font-semibold text-[#2f7468]">Modo demostración</p>
             <p className="mt-1">
@@ -205,6 +230,8 @@ export function LoginScreen({ users, onLogin, deviceReady }: { users: LoginUser[
         )
       }
     >
+      {notice && <p className="mb-4 rounded-xl bg-[#fff6f3] px-3 py-2.5 text-[11px] font-semibold text-[#c9664f]">{notice}</p>}
+      {!onPasswordLogin && (
       <div className="mb-6 flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
         <button className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 ${mode === "password" ? "bg-white text-[#183b36] shadow-sm" : "text-slate-500"}`} onClick={() => setMode("password")}>
           <UserRound size={14} /> Correo y contraseña
@@ -218,6 +245,7 @@ export function LoginScreen({ users, onLogin, deviceReady }: { users: LoginUser[
           <KeyRound size={14} /> PIN
         </button>
       </div>
+      )}
       {mode === "password" ? (
         <form onSubmit={submit} className="space-y-4">
           <label className="form-label">
@@ -234,8 +262,8 @@ export function LoginScreen({ users, onLogin, deviceReady }: { users: LoginUser[
             </div>
           </label>
           <p className="min-h-4 text-[11px] font-semibold text-[#c9664f]">{throttle.wait > 0 ? `Demasiados intentos. Espera ${throttle.wait} s.` : error}</p>
-          <button type="submit" disabled={throttle.wait > 0} className="primary-button w-full justify-center disabled:opacity-50">
-            Entrar
+          <button type="submit" disabled={throttle.wait > 0 || busy} className="primary-button w-full justify-center disabled:opacity-50">
+            {busy ? "Entrando…" : "Entrar"}
           </button>
           <p className="text-center text-[10px] text-slate-400">¿Olvidaste tu contraseña? Pide al administrador que la restablezca.</p>
         </form>

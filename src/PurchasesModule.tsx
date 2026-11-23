@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TODAY_ISO, TODAY_TEXT } from "./entorno";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -216,7 +217,7 @@ export const salesHistory: Record<string, number[]> = {
 
 // ---------- Utilidades ----------
 const money = (value: number) => value.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
-const TODAY_ISO = "2026-11-18";
+
 const displayDate = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }).replace(".", "");
 const addDays = (iso: string, days: number) => {
@@ -1148,7 +1149,7 @@ function PurchaseDetail({
   onOpen?: (nav: string, focus: { query?: string; selectedId?: string }) => void;
 }) {
   const totals = purchaseTotals(po);
-  const stamp = () => `18 nov 2026 · ${new Date().toTimeString().slice(0, 5)}`;
+  const stamp = () => `${TODAY_TEXT} · ${new Date().toTimeString().slice(0, 5)}`;
   const steps: { label: string; done: boolean }[] = [
     { label: "Borrador", done: true },
     { label: "Aprobada", done: !!po.approvedAt },

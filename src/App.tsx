@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DETAIL_FROM, LIVE, TODAY_ISO, TODAY_TEXT, fechaCorta, fechaTexto } from "./entorno";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -54,6 +55,8 @@ import CustomersModule, {
 import QuotePrintView from "./QuoteDocument";
 import CompanyLogo from "./CompanyLogo";
 import { LockScreen, LoginScreen, type LoginUser } from "./LoginScreen";
+import { auth } from "./supabase";
+import { cargarEmpresa } from "./datos";
 import { listForCustomer, listName, priceFor, pricesOf } from "./pricing";
 import { applyConfig, company, initialCompany, initialPolicies, policies, type CompanyConfig, type Policies } from "./config";
 import OrdersModule, {
@@ -143,16 +146,10 @@ type ConvertOptions = {
 
 // Fecha de operación del prototipo (los datos de ejemplo son del 18 nov 2026).
 // En producción: const TODAY_ISO = new Date().toISOString().slice(0, 10);
-const TODAY_ISO = "2026-11-18";
 
-const shortDate = (iso: string) =>
-  new Date(`${iso}T12:00:00`)
-    .toLocaleDateString("es-MX", { day: "numeric", month: "short" })
-    .replace(".", "");
-const fullDate = (iso: string) =>
-  new Date(`${iso}T12:00:00`)
-    .toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
-    .replace(".", "");
+
+const shortDate = fechaCorta;
+const fullDate = fechaTexto;
 const addDays = (iso: string, days: number) => {
   const date = new Date(`${iso}T12:00:00`);
   date.setDate(date.getDate() + days);
@@ -1391,13 +1388,13 @@ function App() {
   const [lockSwitch, setLockSwitch] = useState(false);
   const lastActivity = useRef(Date.now());
   const [roles, setRoles] = useState<AccessRole[]>(initialRoles);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(initialAccounts);
-  const [terminals, setTerminals] = useState<Terminal[]>(initialTerminals);
-  const [manualBank, setManualBank] = useState<BankMovement[]>([
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(LIVE ? [] : initialAccounts);
+  const [terminals, setTerminals] = useState<Terminal[]>(LIVE ? [] : initialTerminals);
+  const [manualBank, setManualBank] = useState<BankMovement[]>(LIVE ? [] : [
     { id: "bm-seed-1", accountId: "acc-san", dateISO: "2026-11-17", at: "11:20", kind: "Otro egreso", gross: 12852, fee: 0, net: -12852, reference: "Pago a Distribuidora Amanco · OC-0041", status: "Confirmado", manual: true },
-  ]);
+      ]);
   // Los cobros de días anteriores ya están confirmados con lo que realmente depositó el banco
-  const [bankOverrides, setBankOverrides] = useState<Record<string, BankOverride>>({
+  const [bankOverrides, setBankOverrides] = useState<Record<string, BankOverride>>(LIVE ? {} : {
     "sale-V-1844-0": { confirmed: true },
     "sale-V-1842-0": { received: 9583.4 },
     "sale-V-1840-0": { confirmed: true },
@@ -1422,9 +1419,9 @@ function App() {
   const [searchIndex, setSearchIndex] = useState(0);
   const topRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState("");
-  const [quotes, setQuotes] = useState<Quote[]>(() => initialQuotes.map(applyExpiry));
+  const [quotes, setQuotes] = useState<Quote[]>(() => (LIVE ? [] : initialQuotes.map(applyExpiry)));
   const [sales, setSales] = useState<Sale[]>(() =>
-    initialSales.map((sale) => ({
+    (LIVE ? [] : initialSales).map((sale) => ({
       ...sale,
       orderId:
         sale.orderId ?? initialOrders.find((order) => order.source.includes(sale.id))?.id,
@@ -1435,7 +1432,7 @@ function App() {
   );
   // Los apartados vigentes de ejemplo tienen su material apartado
   const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>(() =>
-    initialInventory.map((product) => {
+    (LIVE ? [] : initialInventory).map((product) => {
       const held = initialLayaways
         .filter((l) => l.status === "Vigente")
         .flatMap((l) => l.items)
@@ -1444,21 +1441,21 @@ function App() {
       return held ? { ...product, reserved: product.reserved + held } : product;
     }),
   );
-  const [layaways, setLayaways] = useState<Layaway[]>(initialLayaways);
-  const [walletMovements, setWalletMovements] = useState<WalletMovement[]>(initialWallet);
+  const [layaways, setLayaways] = useState<Layaway[]>(LIVE ? [] : initialLayaways);
+  const [walletMovements, setWalletMovements] = useState<WalletMovement[]>(LIVE ? [] : initialWallet);
   const [customers, setCustomers] = useState<Customer[]>(() =>
-    initialCustomers.map((customer) => (customer.businessName === "Ferretería López" ? { ...customer, creditBalance: 189 } : customer)),
+    (LIVE ? [] : initialCustomers).map((customer) => (customer.businessName === "Ferretería López" ? { ...customer, creditBalance: 189 } : customer)),
   );
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const [routePlans, setRoutePlans] = useState<RoutePlan[]>(initialRoutePlans);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers);
-  const [purchases, setPurchases] = useState<PurchaseOrder[]>(initialPurchases);
-  const [cashSessions, setCashSessions] = useState<CashSession[]>(initialCashSessions);
-  const [specialOrders, setSpecialOrders] = useState<SpecialOrder[]>(initialSpecialOrders);
-  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>(defaultFixedExpenses);
-  const [kits, setKits] = useState<Kit[]>(initialKits);
-  const [collaborators, setCollaborators] = useState<Collaborator[]>(initialCollaborators);
-  const [advances, setAdvances] = useState<Advance[]>(initialAdvances);
+  const [orders, setOrders] = useState<Order[]>(LIVE ? [] : initialOrders);
+  const [routePlans, setRoutePlans] = useState<RoutePlan[]>(LIVE ? [] : initialRoutePlans);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(LIVE ? [] : initialSuppliers);
+  const [purchases, setPurchases] = useState<PurchaseOrder[]>(LIVE ? [] : initialPurchases);
+  const [cashSessions, setCashSessions] = useState<CashSession[]>(LIVE ? [] : initialCashSessions);
+  const [specialOrders, setSpecialOrders] = useState<SpecialOrder[]>(LIVE ? [] : initialSpecialOrders);
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>(LIVE ? [] : defaultFixedExpenses);
+  const [kits, setKits] = useState<Kit[]>(LIVE ? [] : initialKits);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>(LIVE ? [] : initialCollaborators);
+  const [advances, setAdvances] = useState<Advance[]>(LIVE ? [] : initialAdvances);
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
   const [socialRate, setSocialRate] = useState(DEFAULT_SOCIAL_RATE);
   // Datos de la empresa y políticas del negocio (Configuración → Empresa / Políticas)
@@ -1482,7 +1479,7 @@ function App() {
       const product = inventoryProducts.find((item) => item.sku === line.sku);
       return { ...line, name: product?.name ?? line.sku, unit: product?.saleUnit ?? line.unit, location: product ? `${product.aisle}-${product.shelf}` : "—" };
     });
-  const [returns, setReturns] = useState<SaleReturn[]>([
+  const [returns, setReturns] = useState<SaleReturn[]>(LIVE ? [] : [
     {
       id: "DV-0001",
       saleId: "V-1844",
@@ -1500,7 +1497,7 @@ function App() {
     },
   ]);
   const [movements, setMovements] = useState<StockMovement[]>(() =>
-    initialInventory.map((product) => ({
+    (LIVE ? [] : initialInventory).map((product) => ({
       id: `mv-init-${product.sku}`,
       sku: product.sku,
       date: "01 nov 2026 · 08:00",
@@ -1513,7 +1510,10 @@ function App() {
   );
 
   // ---------- Usuario actual y permisos ----------
-  const currentUser = collaborators.find((c) => c.id === currentUserId) ?? collaborators[0];
+  const currentUser =
+    collaborators.find((c) => c.id === currentUserId) ??
+    collaborators[0] ??
+    ({ id: "", name: "", role: "Sin acceso", email: "", position: "", area: "Administración", phone: "", startISO: "", status: "Activo", salary: 0, frequency: "Mensual", socialSecurity: false, commissionRate: 0, monthlyGoal: 0, bank: "", emergencyContact: "", notes: "" } as Collaborator);
   const userRole = currentUser.role;
   const allow = (key: PermissionKey) => can(roles, userRole, key);
   const navPermission = (label: string) => PERMISSION_GROUPS.find((g) => g.nav === label)?.view;
@@ -1560,14 +1560,62 @@ function App() {
     setSessionUserId(null);
     setLocked(false);
     setProfileOpen(false);
+    if (LIVE) {
+      auth.signOut();
+      setLiveState({ status: "idle" });
+    }
   };
+
+  // ---------- Modo conectado: sesión de Supabase y datos reales de la empresa ----------
+  const [liveState, setLiveState] = useState<{ status: "idle" | "loading" | "ready" | "error"; message?: string }>(() =>
+    LIVE && auth.current() ? { status: "loading" } : { status: "idle" },
+  );
+  const loadLive = async (userId: string) => {
+    setLiveState({ status: "loading" });
+    try {
+      const d = await cargarEmpresa(userId);
+      setCompanyCfg(d.company);
+      setPolicyCfg(d.policies);
+      setRoles(d.roles);
+      setCollaborators(d.collaborators);
+      setInventoryProducts(d.products);
+      setCustomers(d.customers);
+      setSuppliers(d.suppliers);
+      setSales(d.sales);
+      setQuotes(d.quotes.map((q) => applyExpiry(q as Quote)));
+      setPurchases(d.purchases);
+      setCurrentUserId(d.usuarioId);
+      setSessionUserId(d.usuarioId);
+      setDeviceReady(true);
+      setLiveState({ status: "ready" });
+      lastActivity.current = Date.now();
+    } catch (err) {
+      setLiveState({ status: "error", message: err instanceof Error ? err.message : "No se pudieron cargar los datos" });
+    }
+  };
+  const liveLogin = async (email: string, password: string) => {
+    try {
+      const s = await auth.signIn(email, password);
+      await loadLive(s.user.id);
+      return null;
+    } catch (err) {
+      return err instanceof Error && /invalid|credenciales|grant/i.test(err.message) ? "Correo o contraseña incorrectos." : err instanceof Error ? err.message : "No se pudo iniciar sesión";
+    }
+  };
+  useEffect(() => {
+    // Al abrir de nuevo la página, si hay sesión guardada se cargan los datos sin pedir contraseña
+    const s = LIVE ? auth.current() : null;
+    if (s) auth.refresh().then((r) => (r ? loadLive(r.user.id) : setLiveState({ status: "idle" })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Si al colaborador le quitan el acceso o lo dan de baja, su sesión se cierra
   useEffect(() => {
     if (sessionUserId && !loginUsers.some((u) => u.id === sessionUserId)) logout();
   });
   // Bloqueo por inactividad (Configuración → Políticas)
   useEffect(() => {
-    if (!sessionUserId || locked || !policyCfg.lockMinutes) return;
+    // En modo conectado el bloqueo con PIN llega cuando el PIN se valide en la base de datos
+    if (LIVE || !sessionUserId || locked || !policyCfg.lockMinutes) return;
     const touch = () => (lastActivity.current = Date.now());
     const events = ["mousemove", "mousedown", "keydown", "touchstart", "wheel"];
     events.forEach((e) => window.addEventListener(e, touch, { passive: true }));
@@ -1621,7 +1669,7 @@ function App() {
   // KPIs de inicio calculados con los datos reales de cada módulo
   const activeQuotes = quotes.filter((quote) => activeQuoteStatuses.includes(quote.status));
   const paidSales = sales.filter(
-    (sale) => sale.status === "Pagada" && (range === "Semana" || sale.date === "18 nov 2026"),
+    (sale) => sale.status === "Pagada" && (range === "Semana" || sale.date === TODAY_TEXT),
   );
   // Las recepciones de compra viven en Órdenes, pero no son pedidos de clientes
   const pickingOrders = orders.filter((order) => !isReception(order));
@@ -2268,7 +2316,6 @@ function App() {
 
   // ---------- Bancos: los movimientos se generan desde ventas, caja, cortes y nóminas ----------
   const bankMovements: BankMovement[] = (() => {
-    const DETAIL_FROM = "2026-11-16";
     const terminal = terminals.find((t) => t.isDefault) ?? terminals[0];
     const cardAccount = terminal?.accountId ?? bankAccounts[0]?.id ?? "";
     const transferAccount = bankAccounts[0]?.id ?? "";
@@ -2684,10 +2731,35 @@ function App() {
     showToast(`${quote.id} aceptada: se generó la venta ${saleId} y la orden ${orderId}`);
   };
 
-  if (!sessionUserId) return <LoginScreen users={loginUsers} onLogin={startSession} deviceReady={deviceReady} />;
+  if (LIVE && liveState.status === "loading")
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#f4f7f6] text-sm text-slate-500">
+        <div className="text-center">
+          <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-[#2f7468] border-t-transparent" />
+          Cargando los datos de la empresa…
+        </div>
+      </div>
+    );
+  if (!sessionUserId)
+    return LIVE ? (
+      <LoginScreen
+        users={[]}
+        onLogin={startSession}
+        deviceReady={false}
+        onPasswordLogin={liveLogin}
+        notice={liveState.status === "error" ? liveState.message : undefined}
+      />
+    ) : (
+      <LoginScreen users={loginUsers} onLogin={startSession} deviceReady={deviceReady} />
+    );
 
   return (
     <div ref={topRef} className="min-h-screen bg-[#f4f7f6] text-[#162523]">
+      {LIVE && (
+        <div className="relative z-[60] bg-[#183b36] px-4 py-1.5 text-center text-[11px] font-medium text-white/80">
+          Datos reales de <strong className="text-[#b8f34a]">{companyCfg.commercialName}</strong> · versión de prueba: puedes consultar todo, pero los cambios todavía no se guardan en la base de datos.
+        </div>
+      )}
       {locked && (
         <LockScreen key={String(lockSwitch)} startSwitching={lockSwitch} user={loginUsers.find((u) => u.id === sessionUserId) ?? loginUsers[0]} users={loginUsers} onUnlock={startSession} onLogout={logout} />
       )}
@@ -2925,6 +2997,8 @@ function App() {
                     </p>
                   </div>
                   <div className="border-t border-slate-100 pt-2">
+                    {!LIVE && (
+                    <>
                     <button
                       className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-slate-50"
                       onClick={() => {
@@ -2945,6 +3019,8 @@ function App() {
                     >
                       <Lock size={14} className="text-slate-400" /> Bloquear ahora
                     </button>
+                    </>
+                    )}
                     <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-[#c9664f] hover:bg-[#fff6f3]" onClick={logout}>
                       <LogOut size={14} /> Cerrar sesión
                     </button>
@@ -3313,7 +3389,7 @@ function App() {
                   onClick={() =>
                     navigate("Ventas", {
                       status: "Pagada",
-                      query: range === "Hoy" ? "18 nov 2026" : undefined,
+                      query: range === "Hoy" ? TODAY_TEXT : undefined,
                     })
                   }
                 />

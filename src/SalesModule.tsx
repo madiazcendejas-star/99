@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { TODAY_TEXT } from "./entorno";
 import { PUBLIC_LIST, listForCustomer, listName } from "./pricing";
 import { policies } from "./config";
 import type { Customer } from "./CustomersModule";
@@ -451,7 +452,7 @@ export default function SalesModule({
   const tax = totals.tax;
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const paidToday = sales
-    .filter((sale) => sale.status === "Pagada" && sale.date === "18 nov 2026")
+    .filter((sale) => sale.status === "Pagada" && sale.date === TODAY_TEXT)
     .reduce((sum, sale) => sum + sale.amount, 0);
   // ---------- Cobro ----------
   const round = (value: number) => Math.round(value * 100) / 100;
@@ -1189,7 +1190,7 @@ export default function SalesModule({
 
       <section className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {(() => {
-          const today = sales.filter((sale) => sale.date === "18 nov 2026" && sale.status !== "Cancelada");
+          const today = sales.filter((sale) => sale.date === TODAY_TEXT && sale.status !== "Cancelada");
           const counter = sales.filter((sale) => sale.type === "Mostrador");
           const pendingSales = sales.filter((sale) => pendingAmount(sale) > 0);
           return [
@@ -1200,7 +1201,7 @@ export default function SalesModule({
               icon: CircleDollarSign,
               action: () => {
                 setStatus("Pagada");
-                setQuery("18 nov 2026");
+                setQuery(TODAY_TEXT);
               },
             },
             {
@@ -1210,7 +1211,7 @@ export default function SalesModule({
               icon: ReceiptText,
               action: () => {
                 setStatus("Todas");
-                setQuery("18 nov 2026");
+                setQuery(TODAY_TEXT);
               },
             },
             {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TODAY_ISO } from "./entorno";
 import { policies } from "./config";
 import {
   ArrowLeft,
@@ -72,7 +73,7 @@ export type SaleReturn = {
 const round = (value: number) => Math.round(value * 100) / 100;
 export const money = (value: number) => value.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 const MONTHS: Record<string, number> = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11 };
-export const daysSince = (date: string, todayISO = "2026-11-18") => {
+export const daysSince = (date: string, todayISO = TODAY_ISO) => {
   const [d, m, y] = date.split(" ");
   const sold = new Date(Number(y), MONTHS[m] ?? 0, Number(d), 12);
   const today = new Date(`${todayISO}T12:00:00`);

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TODAY_ISO } from "./entorno";
 import {
   ArrowUpRight,
   BadgeDollarSign,
@@ -99,7 +100,7 @@ export const initialCollaborators: Collaborator[] = [
 export const initialAdvances: Advance[] = [{ id: "AD-001", collaboratorId: "COL-004", dateISO: "2026-11-09", amount: 1500, installments: 3, remaining: 1000, reason: "Adelanto por gastos médicos" }];
 
 // ---------- Cálculos ----------
-const TODAY_ISO = "2026-11-18";
+
 const round = (v: number) => Math.round(v * 100) / 100;
 export const money = (v: number) => v.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 const MONTHS: Record<string, string> = { ene: "01", feb: "02", mar: "03", abr: "04", may: "05", jun: "06", jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12" };
