@@ -1,6 +1,5 @@
 -- ENSAYO · PASO 1 de 3 · Preparar el proyecto nuevo de Supabase (99 ERP para Aquaplus)
 -- Pega TODO este archivo en SQL Editor → New query del proyecto NUEVO y pulsa Run.
--- Crea el esquema de 99 ERP, la estructura 'legado' y las funciones de migración. No contiene datos.
 
 -- =====================================================================
 -- 99 ERP · Esquema inicial (multiempresa)
@@ -1229,6 +1228,10 @@ create table legado.facturas (
 create schema if not exists migracion;
 revoke all on schema migracion from public, anon, authenticated;
 
+-- Ventas que el negocio confirmó como YA cobradas (por ejemplo, las "entregadas" del sistema anterior).
+-- Se llena a mano antes del cambio definitivo:  insert into migracion.ventas_cobradas_confirmadas values ('NV-142743');
+create table if not exists migracion.ventas_cobradas_confirmadas (folio text primary key);
+
 -- Texto de tarifa del sistema anterior → clave de lista de precios
 create or replace function migracion.lista_de(p text)
 returns text language sql immutable as $$
@@ -1440,9 +1443,11 @@ begin
          case when coalesce(v.es_contra_entrega, false) then 'Contra entrega'
               when lower(coalesce(v.tipo_entrega, '')) like '%domicil%' or v.ruta_id is not null then 'A domicilio' else 'Mostrador' end,
          case when lower(coalesce(v.estado, '')) like 'cancel%' or lower(coalesce(v.estado_surtido, '')) like 'cancel%' or lower(coalesce(v.payment_status, '')) like 'cancel%' then 'Cancelada'
-              when lower(coalesce(v.estado, '')) in ('completada', 'pagada', 'pagado', 'liquidada', 'liquidado', 'entregada', 'cobrada')
+              when exists (select 1 from migracion.ventas_cobradas_confirmadas k where k.folio in (v.folio, v.folio_venta)) then 'Pagada'
+              when lower(coalesce(v.estado, '')) in ('completada', 'pagada', 'pagado', 'liquidada', 'liquidado', 'cobrada')
                 or lower(coalesce(v.payment_status, '')) in ('paid', 'pagado', 'pagada', 'completed')
                 or v.fecha_liquidacion is not null or coalesce(v.cobrado_en_ruta, false) then 'Pagada'
+              when lower(coalesce(v.estado, '')) like 'entreg%' then 'Pendiente'   -- entregada pero sin liquidar en caja
               when lower(coalesce(v.estado, '')) like 'pend%' or lower(coalesce(v.payment_status, '')) like 'pend%'
                 or lower(coalesce(v.metodo_pago, v.forma_pago, '')) like '%cr_dito%' or coalesce(v.es_contra_entrega, false) then 'Pendiente'
               else 'Pagada' end,
@@ -1473,7 +1478,8 @@ begin
       and (coalesce(x ->> 'producto_id', x ->> 'id') = d.producto_id::text or (d.producto_id is null and x ->> 'sku' = d.sku))
   ) b on true;
 
-  update ventas n set pendiente_entrega = lv.partidas_backorder
+  -- En el sistema anterior lo que faltó surtir se cancelaba: se conserva marcado así
+  update ventas n set pendiente_entrega = (select jsonb_agg(x || jsonb_build_object('estado', 'Cancelado en el sistema anterior')) from jsonb_array_elements(lv.partidas_backorder) x)
   from legado.ventas lv
   where n.empresa_id = e and n.legacy_id = lv.id::text
     and jsonb_typeof(lv.partidas_backorder) = 'array' and jsonb_array_length(lv.partidas_backorder) > 0;
@@ -1678,6 +1684,12 @@ begin
          count(*)::numeric, sum(n.total), null, 'Confirmar que la interpretación es correcta'
   from legado.ventas v join ventas n on n.empresa_id = e and n.legacy_id = v.id::text
   group by v.estado, v.payment_status, n.estado
+
+  union all
+  select 'Ventas «entregada» por confirmar cobro', count(*)::numeric, sum(n.total), null,
+         'Revisar con caja; las cobradas se anotan en migracion.ventas_cobradas_confirmadas'
+  from legado.ventas v join ventas n on n.empresa_id = e and n.legacy_id = v.id::text
+  where lower(coalesce(v.estado, '')) like 'entreg%' and n.estado = 'Pendiente'
 
   union all
   select 'Pedidos remisionados sin venta en el sistema anterior', count(*)::numeric, sum(o.total), null,

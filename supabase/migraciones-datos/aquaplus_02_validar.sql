@@ -72,6 +72,12 @@ begin
   group by v.estado, v.payment_status, n.estado
 
   union all
+  select 'Ventas «entregada» por confirmar cobro', count(*)::numeric, sum(n.total), null,
+         'Revisar con caja; las cobradas se anotan en migracion.ventas_cobradas_confirmadas'
+  from legado.ventas v join ventas n on n.empresa_id = e and n.legacy_id = v.id::text
+  where lower(coalesce(v.estado, '')) like 'entreg%' and n.estado = 'Pendiente'
+
+  union all
   select 'Pedidos remisionados sin venta en el sistema anterior', count(*)::numeric, sum(o.total), null,
          'Se migraron como órdenes entregadas; confirmar si deben contar como ventas'
   from ordenes_surtido o where o.empresa_id = e and o.estado = 'Entregada';
