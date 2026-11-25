@@ -66,7 +66,7 @@ const initialUsers: AppUser[] = [
   {
     id: "USR-01",
     name: "Carlos Mendoza",
-    email: "carlos@aquaplus.mx",
+    email: "carlos@ferreteriademo.mx",
     role: "Administrador",
     branch: "Sucursal principal",
     active: true,
@@ -74,7 +74,7 @@ const initialUsers: AppUser[] = [
   {
     id: "USR-02",
     name: "Ana López",
-    email: "ana@aquaplus.mx",
+    email: "ana@ferreteriademo.mx",
     role: "Ventas",
     branch: "Sucursal principal",
     active: true,
@@ -82,7 +82,7 @@ const initialUsers: AppUser[] = [
   {
     id: "USR-03",
     name: "Luis Ortega",
-    email: "luis@aquaplus.mx",
+    email: "luis@ferreteriademo.mx",
     role: "Almacén",
     branch: "Sucursal principal",
     active: true,
@@ -90,7 +90,7 @@ const initialUsers: AppUser[] = [
   {
     id: "USR-04",
     name: "Roberto García",
-    email: "roberto@aquaplus.mx",
+    email: "roberto@ferreteriademo.mx",
     role: "Chofer",
     branch: "Sucursal principal",
     active: true,

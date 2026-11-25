@@ -45,13 +45,13 @@ export type Policies = {
 };
 
 export const initialCompany: CompanyConfig = {
-  commercialName: "Aquaplus",
-  legalName: "Comercializadora Aquaplus, S.A. de C.V.",
-  rfc: "CAQ180624KQ2",
+  commercialName: "Ferretería Demo",
+  legalName: "Ferretería Demo, S.A. de C.V.",
+  rfc: "FDE180624KQ2",
   taxRegime: "601 · General de Ley Personas Morales",
   phone: "55 4182 9050",
-  email: "operaciones@aquaplus.mx",
-  website: "aquaplus.mx",
+  email: "operaciones@ferreteriademo.mx",
+  website: "ferreteriademo.mx",
   street: "Av. Central 145, Col. Industrial",
   city: "Ciudad de México",
   state: "CDMX",
