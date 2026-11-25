@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DETAIL_FROM, LIVE, TODAY_ISO, TODAY_TEXT, fechaCorta, fechaTexto } from "./entorno";
+import { DETAIL_FROM, LIVE, TODAY_ISO, TODAY_TEXT, fechaCorta, fechaTexto, nuevoId } from "./entorno";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -55,8 +55,9 @@ import CustomersModule, {
 import QuotePrintView from "./QuoteDocument";
 import CompanyLogo from "./CompanyLogo";
 import { LockScreen, LoginScreen, type LoginUser } from "./LoginScreen";
-import { auth } from "./supabase";
+import { auth, signUp } from "./supabase";
 import { cargarEmpresa } from "./datos";
+import * as db from "./guardar";
 import { listForCustomer, listName, priceFor, pricesOf } from "./pricing";
 import { applyConfig, company, initialCompany, initialPolicies, policies, type CompanyConfig, type Policies } from "./config";
 import OrdersModule, {
@@ -1574,6 +1575,7 @@ function App() {
     setLiveState({ status: "loading" });
     try {
       const d = await cargarEmpresa(userId);
+      await db.prepararGuardado(d.empresaId);
       setCompanyCfg(d.company);
       setPolicyCfg(d.policies);
       setRoles(d.roles);
@@ -1600,6 +1602,21 @@ function App() {
       return null;
     } catch (err) {
       return err instanceof Error && /invalid|credenciales|grant/i.test(err.message) ? "Correo o contraseña incorrectos." : err instanceof Error ? err.message : "No se pudo iniciar sesión";
+    }
+  };
+  const liveSignUp = async (email: string, password: string) => {
+    try {
+      await signUp(email, password);
+    } catch (err) {
+      const m = err instanceof Error ? err.message : "";
+      return { ok: false, message: /already|registered|exists/i.test(m) ? "Ese correo ya tiene cuenta: entra con tu contraseña." : m || "No se pudo crear la cuenta" };
+    }
+    try {
+      const s = await auth.signIn(email, password);
+      await loadLive(s.user.id);
+      return { ok: true, message: "Listo." };
+    } catch {
+      return { ok: true, message: "Te enviamos un correo para confirmar tu cuenta. Ábrelo y después entra aquí con tu correo y tu contraseña." };
     }
   };
   useEffect(() => {
@@ -1631,11 +1648,13 @@ function App() {
     };
   }, [sessionUserId, locked, policyCfg.lockMinutes]);
   const saveRole = (role: AccessRole, previousName?: string) => {
+    guarda(() => db.guardarRol(role));
     setRoles((items) => (items.some((r) => r.id === role.id) ? items.map((r) => (r.id === role.id ? role : r)) : [...items.slice(0, -1), role, items[items.length - 1]]));
     if (previousName && previousName !== role.name)
       setCollaborators((items) => items.map((c) => (c.role === previousName ? { ...c, role: role.name } : c)));
   };
   const deleteRole = (role: AccessRole) => {
+    guarda(() => db.eliminarRol(role));
     setRoles((items) => items.filter((r) => r.id !== role.id));
     setCollaborators((items) => items.map((c) => (c.role === role.name ? { ...c, role: NO_ACCESS_ROLE } : c)));
   };
@@ -1770,6 +1789,12 @@ function App() {
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(""), 3200);
   };
+  /** Guarda en la base de datos (modo conectado) y avisa si algo falla */
+  const guarda = (fn: () => Promise<unknown>) => {
+    if (!LIVE) return;
+    fn().catch((err) => showToast(`⚠ No se guardó en la base de datos: ${err instanceof Error ? err.message : "error de conexión"}`));
+  };
+
 
   const handleCreateQuote = (result: QuoteBuilderResult) => {
     const nextNumber = Math.max(...quotes.map((quote) => Number(quote.id.replace("C-", "")))) + 1;
@@ -1849,6 +1874,16 @@ function App() {
             },
       ),
     );
+    guarda(() =>
+      db.movimientoInventario(
+        product,
+        input.kind === "Conteo" ? "Ajuste" : input.kind,
+        qty,
+        input.kind === "Entrada" ? `Compra · ${input.reference}${input.supplier ? ` · ${input.supplier}` : ""}` : input.kind === "Conteo" ? "Conteo físico" : "Merma",
+        user.name,
+        input.kind === "Entrada" ? (product.stock * product.cost + input.qty * input.unitCost) / Math.max(1, product.stock + input.qty) : undefined,
+      ),
+    );
     recordMovements([
       {
         sku,
@@ -1870,8 +1905,10 @@ function App() {
     );
   };
 
-  const updateProduct = (product: InventoryProduct) =>
+  const updateProduct = (product: InventoryProduct) => {
     setInventoryProducts((items) => items.map((item) => (item.id === product.id ? product : item)));
+    guarda(() => db.guardarProducto(product));
+  };
 
   // ---------- Compras ----------
   const updatePurchase = (po: PurchaseOrder) =>
@@ -2401,7 +2438,7 @@ function App() {
     setCustomers((items) => [
       ...items,
       {
-        id: `CL-${next}`,
+        id: nuevoId(`CL-${next}`),
         businessName: name,
         contactName: name,
         rfc: "",
@@ -2747,6 +2784,7 @@ function App() {
         onLogin={startSession}
         deviceReady={false}
         onPasswordLogin={liveLogin}
+        onSignUp={liveSignUp}
         notice={liveState.status === "error" ? liveState.message : undefined}
       />
     ) : (
@@ -2757,7 +2795,7 @@ function App() {
     <div ref={topRef} className="min-h-screen bg-[#f4f7f6] text-[#162523]">
       {LIVE && (
         <div className="relative z-[60] bg-[#183b36] px-4 py-1.5 text-center text-[11px] font-medium text-white/80">
-          Datos reales de <strong className="text-[#b8f34a]">{companyCfg.commercialName}</strong> · versión de prueba: puedes consultar todo, pero los cambios todavía no se guardan en la base de datos.
+          Datos reales de <strong className="text-[#b8f34a]">{companyCfg.commercialName}</strong> · versión de prueba · ya se guardan productos, inventario, clientes, proveedores, colaboradores y configuración; ventas, caja y cotizaciones todavía no.
         </div>
       )}
       {locked && (
@@ -3164,6 +3202,7 @@ function App() {
               onAdjust={adjustStock}
               onAddProducts={(newProducts) => {
                 setInventoryProducts((items) => [...newProducts, ...items]);
+                guarda(() => db.altaProductos(newProducts, user.name));
                 setMovements((items) => [
                   ...newProducts.map((product, index) => ({
                     id: `mv-new-${Date.now()}-${index}`,
@@ -3196,13 +3235,14 @@ function App() {
               specialPending={specialOrders.filter((order) => order.status === "Por pedir")}
               kits={kits}
               onSpecialToPurchase={specialToPurchase}
-              onSaveSupplier={(supplier) =>
+              onSaveSupplier={(supplier) => {
                 setSuppliers((items) =>
                   items.some((item) => item.id === supplier.id)
                     ? items.map((item) => (item.id === supplier.id ? supplier : item))
                     : [...items, supplier],
-                )
-              }
+                );
+                guarda(() => db.guardarProveedor(supplier));
+              }}
               onToast={showToast}
               onOpen={navigate}
             />
@@ -3220,8 +3260,14 @@ function App() {
                 setQuoteOpen(true);
               }}
               onOpen={navigate}
-              onAddCustomer={(customer) => setCustomers((items) => [customer, ...items])}
-              onUpdateCustomer={(customer) => setCustomers((items) => items.map((c) => (c.id === customer.id ? customer : c)))}
+              onAddCustomer={(customer) => {
+                setCustomers((items) => [customer, ...items]);
+                guarda(() => db.guardarCliente(customer, collaborators));
+              }}
+              onUpdateCustomer={(customer) => {
+                setCustomers((items) => items.map((c) => (c.id === customer.id ? customer : c)));
+                guarda(() => db.guardarCliente(customer, collaborators));
+              }}
               onToast={showToast}
             />
           ) : activeNav === "Órdenes" ? (
@@ -3261,9 +3307,10 @@ function App() {
               returns={returns}
               cashOpen={Boolean(openCash)}
               userName={user.name}
-              onSaveCollaborator={(c) =>
-                setCollaborators((items) => (items.some((x) => x.id === c.id) ? items.map((x) => (x.id === c.id ? c : x)) : [...items, c]))
-              }
+              onSaveCollaborator={(c) => {
+                setCollaborators((items) => (items.some((x) => x.id === c.id) ? items.map((x) => (x.id === c.id ? c : x)) : [...items, c]));
+                guarda(() => db.guardarColaborador(c));
+              }}
               onSaveAdvance={(a, cash) => {
                 setAdvances((items) => [a, ...items]);
                 const who = collaborators.find((c) => c.id === a.collaboratorId)?.name ?? "";
@@ -3329,6 +3376,7 @@ function App() {
                 onSave: (c, p) => {
                   setCompanyCfg(c);
                   setPolicyCfg(p);
+                  guarda(() => db.guardarEmpresa(c, p));
                 },
               }}
               access={{
@@ -3336,7 +3384,11 @@ function App() {
                 usage: Object.fromEntries(roles.map((r) => [r.name, collaborators.filter((c) => c.role === r.name && c.status === "Activo").map((c) => c.name)])),
                 people: collaborators.map((c) => ({ id: c.id, name: c.name, position: c.position, role: c.role, status: c.status })),
                 canManageRoles: allow("configuracion.roles"),
-                onChangeRole: (id, roleName) => setCollaborators((items) => items.map((c) => (c.id === id ? { ...c, role: roleName } : c))),
+                onChangeRole: (id, roleName) => {
+                  setCollaborators((items) => items.map((c) => (c.id === id ? { ...c, role: roleName } : c)));
+                  const who = collaborators.find((c) => c.id === id);
+                  if (who) guarda(() => db.guardarColaborador({ ...who, role: roleName }));
+                },
                 onSaveRole: saveRole,
                 onDeleteRole: deleteRole,
                 onGoCollaborators: () => navigate("Colaboradores"),
@@ -4153,7 +4205,10 @@ function App() {
             setQuoteOpen(false);
             setQuoteCustomer(null);
           }}
-          onAddCustomer={(customer) => setCustomers((items) => [customer, ...items])}
+          onAddCustomer={(customer) => {
+            setCustomers((items) => [customer, ...items]);
+            guarda(() => db.guardarCliente(customer, collaborators));
+          }}
           onComplete={handleCreateQuote}
         />
       )}

@@ -170,6 +170,7 @@ export function LoginScreen({
   onLogin,
   deviceReady,
   onPasswordLogin,
+  onSignUp,
   notice,
 }: {
   users: LoginUser[];
@@ -177,9 +178,14 @@ export function LoginScreen({
   deviceReady: boolean;
   /** Modo conectado: valida correo y contraseña en Supabase; devuelve un mensaje si falla */
   onPasswordLogin?: (email: string, password: string) => Promise<string | null>;
+  /** Modo conectado: primer acceso de un colaborador ya registrado (crea su contraseña) */
+  onSignUp?: (email: string, password: string) => Promise<{ ok: boolean; message: string }>;
   notice?: string;
 }) {
   const [busy, setBusy] = useState(false);
+  const [signup, setSignup] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const [info, setInfo] = useState("");
   const [mode, setMode] = useState<"password" | "pin">(deviceReady ? "pin" : "password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -189,6 +195,18 @@ export function LoginScreen({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (throttle.wait > 0 || busy) return;
+    if (signup && onSignUp) {
+      setError("");
+      setInfo("");
+      if (password.length < 8) return setError("La contraseña debe tener al menos 8 caracteres.");
+      if (password !== confirm) return setError("Las contraseñas no coinciden.");
+      setBusy(true);
+      const r = await onSignUp(email, password);
+      setBusy(false);
+      if (r.ok) setInfo(r.message);
+      else setError(r.message);
+      return;
+    }
     if (onPasswordLogin) {
       setBusy(true);
       setError("");
@@ -261,11 +279,33 @@ export function LoginScreen({
               </button>
             </div>
           </label>
+          {signup && (
+            <label className="form-label">
+              Confirma tu contraseña
+              <input type={show ? "text" : "password"} autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} className="form-input" />
+            </label>
+          )}
+          {info && <p className="rounded-xl bg-[#eef7f2] px-3 py-2.5 text-[11px] font-semibold text-[#347652]">{info}</p>}
           <p className="min-h-4 text-[11px] font-semibold text-[#c9664f]">{throttle.wait > 0 ? `Demasiados intentos. Espera ${throttle.wait} s.` : error}</p>
           <button type="submit" disabled={throttle.wait > 0 || busy} className="primary-button w-full justify-center disabled:opacity-50">
-            {busy ? "Entrando…" : "Entrar"}
+            {busy ? (signup ? "Creando…" : "Entrando…") : signup ? "Crear mi contraseña" : "Entrar"}
           </button>
-          <p className="text-center text-[10px] text-slate-400">¿Olvidaste tu contraseña? Pide al administrador que la restablezca.</p>
+          {onSignUp ? (
+            <button
+              type="button"
+              className="block w-full text-center text-[11px] font-semibold text-[#2f7468]"
+              onClick={() => {
+                setSignup(!signup);
+                setError("");
+                setInfo("");
+              }}
+            >
+              {signup ? "Ya tengo contraseña: entrar" : "¿Es tu primera vez? Crea tu contraseña"}
+            </button>
+          ) : null}
+          <p className="text-center text-[10px] text-slate-400">
+            {signup ? "Solo funciona si tu administrador ya te registró con este correo en Colaboradores." : "¿Olvidaste tu contraseña? Pide al administrador que la restablezca."}
+          </p>
         </form>
       ) : (
         <PinLogin users={users} onLogin={onLogin} title="¿Quién eres?" />

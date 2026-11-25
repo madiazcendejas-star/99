@@ -27,3 +27,9 @@ export const fechaTexto = (iso: string) => {
 /** "2026-11-18" → "18 nov" */
 export const fechaCorta = (iso: string) => fechaTexto(iso).replace(/ \d{4}$/, "");
 export const TODAY_TEXT = fechaTexto(TODAY_ISO);
+
+/** Id para registros nuevos: en modo conectado un UUID (lo que espera la base de datos) */
+export const nuevoId = (demo: string) => (LIVE && typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : demo);
+export const esUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+/** Cómo mostrar un id en pantalla (los UUID se abrevian) */
+export const idVisible = (id: string) => (esUuid(id) ? id.slice(0, 8).toUpperCase() : id);

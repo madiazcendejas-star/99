@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { nuevoId } from "./entorno";
 import { Check, Copy, Lock, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
 
 // ---------- Catálogo de permisos ----------
@@ -176,7 +177,7 @@ export function RolesSettings({
           <button
             className="primary-button ml-auto min-h-9 px-3 text-[11px]"
             onClick={() => {
-              const role: Role = { id: `role-${Date.now()}`, name: "Nuevo rol", description: "", permissions: ["ver.inicio"], maxDiscount: 0 };
+              const role: Role = { id: nuevoId(`role-${Date.now()}`), name: "Nuevo rol", description: "", permissions: ["ver.inicio"], maxDiscount: 0 };
               onSave(role);
               setSelectedId(role.id);
               setDraft(role);
@@ -216,7 +217,7 @@ export function RolesSettings({
               <button
                 className="secondary-button flex min-h-9 items-center gap-1.5 bg-white"
                 onClick={() => {
-                  const copy: Role = { ...draft, id: `role-${Date.now()}`, name: `${draft.name} (copia)`, locked: false };
+                  const copy: Role = { ...draft, id: nuevoId(`role-${Date.now()}`), name: `${draft.name} (copia)`, locked: false };
                   onSave(copy);
                   setSelectedId(copy.id);
                   setDraft(copy);

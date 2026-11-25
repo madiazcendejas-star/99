@@ -127,3 +127,45 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
 }
+
+/** Inserta filas y devuelve lo insertado */
+export async function insert<T = Record<string, unknown>>(table: string, rows: unknown, opts: { upsertOn?: string; minimal?: boolean } = {}): Promise<T[]> {
+  const q = opts.upsertOn ? `?on_conflict=${opts.upsertOn}` : "";
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${q}`, {
+    method: "POST",
+    headers: await headers({
+      "Content-Type": "application/json",
+      Prefer: `return=${opts.minimal ? "minimal" : "representation"}${opts.upsertOn ? ",resolution=merge-duplicates" : ""}`,
+    }),
+    body: JSON.stringify(rows),
+  });
+  await check(res);
+  return opts.minimal ? [] : ((await res.json()) as T[]);
+}
+
+/** Actualiza las filas que cumplen el filtro (por ejemplo "id=eq.123") */
+export async function update(table: string, filter: string, patch: Record<string, unknown>) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+    method: "PATCH",
+    headers: await headers({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+    body: JSON.stringify(patch),
+  });
+  await check(res);
+}
+
+export async function remove(table: string, filter: string) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, { method: "DELETE", headers: await headers({ Prefer: "return=minimal" }) });
+  await check(res);
+}
+
+/** Alta de cuenta (primer acceso de un colaborador ya registrado por su administrador) */
+export async function signUp(email: string, password: string) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new SupabaseError(data.msg || data.error_description || data.message || "No se pudo crear la cuenta", res.status);
+  return data as { access_token?: string; user?: { id: string } };
+}

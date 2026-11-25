@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { TODAY_ISO, TODAY_TEXT } from "./entorno";
+import { TODAY_ISO, TODAY_TEXT, idVisible, nuevoId } from "./entorno";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -604,7 +604,7 @@ export default function PurchasesModule({
                         <div>
                           <p className="font-semibold text-slate-800">{supplier.name}</p>
                           <p className="mt-1 text-[10px] text-slate-400">
-                            {supplier.id} · {supplier.categories || "Sin categoría"}
+                            {idVisible(supplier.id)} · {supplier.categories || "Sin categoría"}
                           </p>
                         </div>
                       </div>
@@ -671,7 +671,7 @@ export default function PurchasesModule({
 }
 
 const emptySupplier = (suppliers: Supplier[]): Supplier => ({
-  id: `PR-${String(suppliers.length + 1).padStart(2, "0")}`,
+  id: nuevoId(`PR-${String(suppliers.length + 1).padStart(2, "0")}`),
   name: "",
   contact: "",
   phone: "",

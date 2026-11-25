@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { nuevoId } from "./entorno";
 import { policies } from "./config";
 import { PUBLIC_LIST, priceFor, pricesOf } from "./pricing";
 import { KitsPanel, type Kit, type KitLineComponent } from "./KitsModule";
@@ -461,7 +462,7 @@ export default function InventoryModule({
     }
     const product: InventoryProduct = {
       ...data,
-      id: `prod-${Date.now()}`,
+      id: nuevoId(`prod-${Date.now()}`),
       reserved: 0,
     };
     onAddProducts([product]);
@@ -499,7 +500,7 @@ export default function InventoryModule({
       const cost = Number(field(row, "costo")) || 0;
       const retail = Number(field(row, "precio_mostrador")) || 0;
       return {
-        id: `bulk-${Date.now()}-${index}`,
+        id: nuevoId(`bulk-${Date.now()}-${index}`),
         sku: field(row, "sku") || `SKU-${Date.now()}-${index}`,
         barcode: field(row, "codigo_barras"),
         name: field(row, "nombre") || "Producto sin nombre",

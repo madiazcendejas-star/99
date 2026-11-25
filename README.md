@@ -20,7 +20,9 @@ Para generar la versión de producción: `npm run build` (queda en `dist/`).
 - **Conectado:** con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` (ver `.env.example`):
   - el inicio de sesión es el de Supabase y se cargan los datos reales de la empresa del usuario;
   - la fecha es la de hoy;
-  - en esta primera versión es de **consulta**: los cambios todavía no se guardan en la base de datos.
+  - ya se guardan productos (alta, carga masiva, cambios y precios por lista), movimientos de inventario, clientes, proveedores, colaboradores, roles y la configuración de la empresa;
+  - ventas, caja, cotizaciones, compras, órdenes y rutas todavía no se guardan (siguiente etapa);
+  - un colaborador registrado por su administrador entra por primera vez con "¿Es tu primera vez? Crea tu contraseña".
 
 ## Vista rápida sin instalar nada
 

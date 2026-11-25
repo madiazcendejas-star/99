@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { idVisible, nuevoId } from "./entorno";
 import { policies } from "./config";
 import { listForCustomer, listName } from "./pricing";
 import StatementPrintView, { type StatementRow } from "./CustomerDocument";
@@ -464,7 +465,7 @@ export default function CustomersModule({
       Math.max(...customers.map((customer) => Number(customer.id.replace("CL-", "")))) + 1;
     const customer: Customer = {
       ...form,
-      id: `CL-${nextNumber}`,
+      id: nuevoId(`CL-${nextNumber}`),
       status: "Activo",
       balance: 0,
       totalPurchases: 0,
@@ -739,7 +740,7 @@ export default function CustomersModule({
                       <div>
                         <p className="font-semibold text-slate-800">{customer.businessName}</p>
                         <p className="mt-1 text-[10px] text-slate-400">
-                          {customer.id} · {customer.rfc}
+                          {idVisible(customer.id)} · {customer.rfc}
                         </p>
                       </div>
                     </button>
@@ -1046,7 +1047,7 @@ export default function CustomersModule({
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-slate-400">
-                        {customer.id} · {customer.rfc || "Sin RFC"} · {customer.city || "Sin ciudad"}
+                        {idVisible(customer.id)} · {customer.rfc || "Sin RFC"} · {customer.city || "Sin ciudad"}
                       </p>
                     </div>
                   </div>

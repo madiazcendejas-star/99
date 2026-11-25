@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { TODAY_ISO } from "./entorno";
+import { TODAY_ISO, idVisible, nuevoId } from "./entorno";
 import {
   ArrowUpRight,
   BadgeDollarSign,
@@ -298,7 +298,7 @@ export default function CollaboratorsModule({
           <button
             className="primary-button"
             onClick={() =>
-              setEditing({ id: `COL-${String(collaborators.length + 1).padStart(3, "0")}`, name: "", position: "", area: "Ventas", role: "Vendedor", phone: "", email: "", startISO: TODAY_ISO, status: "Activo", salary: 0, frequency: "Quincenal", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "", emergencyContact: "", notes: "" })
+              setEditing({ id: nuevoId(`COL-${String(collaborators.length + 1).padStart(3, "0")}`), name: "", position: "", area: "Ventas", role: "Vendedor", phone: "", email: "", startISO: TODAY_ISO, status: "Activo", salary: 0, frequency: "Quincenal", socialSecurity: true, commissionRate: 0, monthlyGoal: 0, bank: "", emergencyContact: "", notes: "" })
             }
           >
             <Plus size={16} /> Nuevo colaborador
@@ -363,7 +363,7 @@ export default function CollaboratorsModule({
                       <div>
                         <p className="font-semibold">{c.name}</p>
                         <p className="text-[10px] text-slate-400">
-                          {c.position} · {c.id}
+                          {c.position} · {idVisible(c.id)}
                           {c.status === "Baja" ? " · Baja" : ""}
                         </p>
                       </div>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { nuevoId } from "./entorno";
 import { listForCustomer, listName, priceFor } from "./pricing";
 import { policies } from "./config";
 import {
@@ -700,7 +701,7 @@ function NewCustomerModal({
     const nextNumber =
       Math.max(...customers.map((customer) => Number(customer.id.replace("CL-", "")))) + 1;
     onCreate({
-      id: `CL-${nextNumber}`,
+      id: nuevoId(`CL-${nextNumber}`),
       businessName: name,
       contactName: contact,
       rfc,
